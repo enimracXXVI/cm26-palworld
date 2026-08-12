@@ -6,16 +6,14 @@ are also shown inside the app (Breeding Log tab → "Google Sheet
 sync" button, which also has a "Copy the Apps Script code" button so
 you don't need to open this file directly).
 
-A blank spreadsheet has already been created for this project:
-**Palpedia Field Tracker Data** in your Google Drive. Open it and
-follow the setup steps below on that file — you don't need to create
-a new one.
+A spreadsheet already exists for this project: **Palpedia Field
+Tracker Data** in your Google Drive. Open it and follow the setup
+steps below on that file.
 
 ## Setup
 
 1. Open the **Palpedia Field Tracker Data** spreadsheet (or use your
-   own, any name — the five tabs below are created automatically the
-   first time the app talks to it).
+   own, any name).
 2. Open **Extensions → Apps Script**, delete the placeholder `Code.gs`
    content, and paste in [`Code.gs`](./Code.gs) from this folder.
 3. In the Apps Script editor: **Project Settings** (gear icon) →
@@ -38,104 +36,89 @@ Web app URL runs. Go to **Deploy → Manage deployments** → pencil icon
 on your deployment → **Version: New version** → **Deploy**. (Making a
 brand new deployment instead works too, but gives you a different URL
 you'll need to re-paste into the app.) Forgetting this step is the
-most common reason the app says it can't connect even though the
-sheet's tabs look right — the tabs were created by whichever version
-of the script *did* run at some point, which can be older than what
-you're now looking at in the editor.
+most common reason the app says it can't connect, or behaves like an
+older version, even though the sheet's tabs look right.
 
-## The five tabs
+## Schema
 
-Nothing needs to be created by hand — the script makes all five the
-first time it runs, and additively migrates a tab that already exists
-(only ever appending a missing column, never touching what's there):
+Every read and write looks columns up **by name**, never by position —
+reorder your columns, add your own extra ones, whatever you like, and
+the app keeps working. A tab that doesn't exist yet is created with
+sensible defaults; a tab that already exists is **never** restructured
+or renamed by this script, with two narrow, purpose-built exceptions
+described below (`pals.discovered`/`imageUrl`, `passiveSkills.unlocked`).
 
-- **BreedingLog** — your logged breeding entries. Fully owned by the
-  app; don't hand-edit the columns, just use the Breeding Log tab.
-- **PalsDB** — seeded *once* with the app's built-in 284-Pal roster:
-  `PalId`, `Number`, `Suffix`, `Name`, `Types`, a blank `ImageUrl`, a
-  blank `Discovered`, and `PartnerSkill` / `PartnerSkillDesc`
-  backfilled from the app's own data where known.
-  - Paste a picture URL into `ImageUrl` for any row and the app shows
-    it for that Pal everywhere, looked up by `PalId` (e.g. `044` for
-    Lamball, `044B` for a variant). A picture set manually in the app
-    itself (per-browser, "Add a picture" on a card) always overrides
-    the sheet's.
-  - `Discovered` is written by the app when you tick a Pal off (any of
-    `Yes`/`TRUE`/`1`/`x` counts as discovered if you'd rather edit it
-    by hand). It syncs both ways: the sheet's discovered Pals merge
-    into your local progress on every connect (never un-discovering
-    anything locally), and anything discovered locally but missing
-    from the sheet gets pushed up. "Reset Palpedia progress" in the
-    app clears this column too.
-  - If a tab from before this column set already exists, the script
-    adds `Discovered`/`PartnerSkill`/`PartnerSkillDesc` next time it
-    runs — nothing is deleted or reordered.
-- **ActiveSkillsDB** — created **empty** (just the header row: `Name`,
-  `Element`, `Power`, `CT`, `Notes`). We didn't ship a built-in active
-  skills list because we couldn't fetch/verify one against a real
-  source in this environment — paste your own from wherever you trust
-  (wiki export, spreadsheet, etc.), in any column order; extra
-  columns are ignored, and only `Name` is required for the app to use
-  a row. Once there are rows here, the Breeding Log's "Active skills"
-  field switches from free-typing to a search-as-you-type list, live,
-  without needing to reload the app.
-- **ElementsDB** — seeded *once* with the 9 Palworld types
-  (`TypeCode`, `Name`, blank `ImageUrl`). Paste a picture URL per type
-  and the app shows that image instead of a colored pill wherever a
-  Pal's types are listed.
-- **PassiveSkillsDB** — seeded *once* with the app's built-in 115-entry
-  passive skill list (`Name`, `Rank`, `Surgery`, `Effects` — effects
-  pipe-separated in one cell). Unlike ActiveSkillsDB this one starts
-  full, not empty: the app already has good data for it, so you're
-  editing/correcting/extending a working copy rather than starting
-  from scratch. The app reads its whole passive skills list — the
-  Passive Skills reference modal, and the Breeding Log's passive-skill
-  suggestions — from this tab once connected, instead of its own
-  hardcoded copy, so a rename, added row, or corrected effect line
-  here shows up in the app on the next sync.
+- **breedingLog** — `id, createdAt, parentA_palId, parentA_sex,
+  parentA_passives, parentA_actives, parentB_palId, parentB_sex,
+  parentB_passives, parentB_actives, offspring_palId, offspring_sex,
+  offspring_passives, offspring_actives, notes`. Fully owned by the
+  app; don't hand-edit it.
+- **pals** — `id, palId, name, type, imageUrl, discovered`. `type` may
+  be comma- or pipe-separated. The app writes `imageUrl` (when you add
+  a picture through the app itself, not just when you paste one into
+  the sheet) and `discovered` (when you tick a Pal off — any of
+  `Yes`/`TRUE`/`1`/`x` counts if you'd rather edit it by hand).
+  Discovery syncs both ways: the sheet's discovered Pals merge into
+  your local progress on every connect (never un-discovering anything
+  locally), and anything discovered locally but missing from the sheet
+  gets pushed up. "Reset Palpedia progress" in the app clears this
+  column too.
+- **partnerSkills** — its own tab: `id, palId, palName, name,
+  description`. One row per Pal, joined to `pals` by `palId`.
+- **activeSkills** — `id, name, element, power, ct, exclusive,
+  description, notes`. You populate this yourself — only `name` is
+  required for a row to be used. Once there are rows here, the
+  Breeding Log's "Active skills" field switches from free-typing to a
+  search-as-you-type list, live, without reloading the app.
+- **elements** — `id, code, name, imageUrl` — the 9 Palworld types.
+  Paste a picture URL per type and the app shows that image instead of
+  a colored pill wherever a Pal's types are listed (both on cards and
+  in the type filter chips).
+- **passiveSkills** — `id, name, rank, surgery, effects, unlocked`.
+  `effects` may be comma- or pipe-separated. `unlocked` is the one
+  column this script adds to an existing tab if it's missing —
+  appended at the end, nothing else touched — because the app tracks
+  which passives you've discovered here too, the same way it tracks
+  `pals.discovered`. The Passive Skills modal and the Breeding Log's
+  passive-skill suggestions both read this whole tab live, so a
+  rename, correction, or added row shows up on the next sync — a
+  locked (not-yet-unlocked) passive shows only its name and rank, not
+  its effects or whether it needs Surgery.
 
-## If PalsDB was created before this fix
+### Multi-value columns: comma vs. pipe
 
-An earlier version of this script wrote `PalId` values like `"001"`
-without forcing the column to plain-text format first — Google Sheets
-silently auto-detects numeric-looking text and converts it, the same
-as if you'd typed `001` into a cell yourself and watched it become
-`1`. That broke every lookup keyed by `PalId` (missing Partner Skills,
-pictures not showing, `Discovered` not syncing) for every Pal whose id
-doesn't have a letter suffix. The current script repairs this
-automatically the next time it runs — it detects any numeric `PalId`
-cell, restores the correct zero-padded id, and then backfills any
-`PartnerSkill`/`PartnerSkillDesc` cells that were left blank because
-of it. Just redeploy (see the note above) and reconnect; no manual
-sheet editing needed.
+If a column is a Sheets **multi-select dropdown**, Sheets auto-joins
+selections with `, ` — there's no way to make a dropdown emit `|`
+instead. Rows the app writes itself (breedingLog's passives/actives
+lists) use `|`, since that's not going through a dropdown and avoids
+any ambiguity with commas that might appear inside free text. Every
+read in this script accepts **either** separator, so it doesn't matter
+which one produced a given cell — you don't need to standardize your
+existing columns.
 
-## Troubleshooting "can't connect"
+## Known data gap
 
-The tabs being created proves *some* request from the app reached the
-script successfully at some point — so if it's failing now, check
-these in order:
-
-1. **Did you redeploy after the last script change?** See the note
-   above — this is the single most common cause.
-2. **"Who has access" on the deployment is "Anyone"** — not "Anyone
-   with Google account". The latter requires the visitor to be signed
-   in, which a plain background request from the app can't do, and
-   you'll get a Google sign-in page back instead of data.
-3. **You're using the `/exec` URL**, not a `/dev` test URL from the
-   Apps Script editor's "Run" button — `/dev` also requires you to be
-   signed in as the script's owner in that browser tab.
-4. **The `SECRET` matches exactly** between the app's settings and the
-   Script Property — no extra spaces, same case.
-
-The app's connection-status line now shows the actual failure instead
-of a generic message (e.g. it'll say when the response wasn't JSON at
-all, which almost always points to #2 or #3 above).
+`partnerSkills` only has real data through Pal `109B`; palId `110`
+onward are present as rows but with blank `name`/`description`. We
+don't have a verified source for the rest and didn't want to guess and
+have the app show made-up game data as fact — paste in real data for
+those rows yourself if you find a source you trust, and the app will
+pick it up automatically (no code change needed).
 
 ## Notes
 
 - Nothing here calls any external Anthropic/Claude API — this is a
   first-party Apps Script talking only to the sheet it's bound to.
-- Breeding entries, Pal pictures, partner skills, element pictures,
-  and active skill names are all cached in the browser's
-  `localStorage` too, so the app keeps working from your last
-  successful sync if the Sheet is temporarily unreachable.
+- Every reference dataset (pals, partner skills, active skills,
+  elements, passive skills) is cached in the browser's `localStorage`
+  too, so the app keeps working from your last successful sync if the
+  Sheet is temporarily unreachable.
+- **Every `*_palId` value is forced to plain-text format before
+  writing, and self-repaired on read.** Google Sheets silently turns a
+  numeric-looking string like `"001"` into the number `1` otherwise —
+  this bit both `pals.palId` and `breedingLog`'s three palId columns
+  in earlier versions of this script, which is why a breeding entry
+  could show a Pal's number instead of its name and picture after a
+  page reload. If you're updating from an older script version, just
+  redeploy (see above) and the next sync repairs any already-corrupted
+  cells automatically.

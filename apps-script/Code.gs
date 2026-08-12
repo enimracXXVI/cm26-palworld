@@ -13,43 +13,38 @@
  * Version: New version -> Deploy. (Or make a fresh deployment, but
  * then you must re-paste the new URL into the app.)
  *
- * Four tabs are created automatically the first time the script runs
- * (a doGet call is enough — you don't need to run anything by hand),
- * and existing tabs are migrated additively (new columns appended,
- * nothing already there is ever touched):
+ * SCHEMA — six tabs, all lowercase, everything looked up by column
+ * name (not position), so reordering or adding your own columns never
+ * breaks anything. A missing tab is created with sensible defaults;
+ * an existing tab is never restructured, only ever read from — except
+ * for two narrow, purpose-built writes: pals.discovered/imageUrl and
+ * passiveSkills.unlocked (added as a new column if it isn't there yet,
+ * appended at the end, nothing else touched).
  *
- *  - BreedingLog:    your logged breeding entries. Fully owned by the
- *                    app; don't hand-edit the columns.
- *  - PalsDB:         seeded once with the app's built-in 284-Pal
- *                    roster (id/number/suffix/name/types), each row's
- *                    Partner Skill (backfilled from the app's own
- *                    data where known), a blank ImageUrl column, and
- *                    a blank Discovered column. Paste a picture URL
- *                    per row to show it for that Pal everywhere. The
- *                    Discovered column is written by the app itself
- *                    when you tick a Pal off — you can also flip it
- *                    by hand.
- *  - ActiveSkillsDB: created empty (headers only) — paste in your own
- *                    active-skill data (Name / Element / Power / CT /
- *                    Notes, in any order, extra columns ignored) and
- *                    the breeding form's active-skill field switches
- *                    from free text to a search-as-you-type list.
- *  - ElementsDB:     seeded once with the 9 Palworld types (TypeCode /
- *                    Name / blank ImageUrl). Paste a picture per type
- *                    and the app shows that image instead of a
- *                    colored pill wherever a Pal's types are listed.
+ *  - breedingLog:   id, createdAt, parentA_palId, parentA_sex,
+ *                   parentA_passives, parentA_actives, parentB_palId,
+ *                   parentB_sex, parentB_passives, parentB_actives,
+ *                   offspring_palId, offspring_sex, offspring_passives,
+ *                   offspring_actives, notes. Fully owned by the app.
+ *  - pals:          id, palId, name, type, imageUrl, discovered.
+ *                   'type' may be comma- or pipe-separated (a Sheets
+ *                   multi-select dropdown auto-joins with commas).
+ *  - partnerSkills: id, palId, palName, name, description — a
+ *                   separate tab, one row per Pal.
+ *  - activeSkills:  id, name, element, power, ct, exclusive,
+ *                   description, notes — you populate this yourself;
+ *                   only 'name' is required for a row to be used.
+ *  - elements:      id, code, name, imageUrl — the 9 Palworld types.
+ *  - passiveSkills: id, name, rank, surgery, effects, unlocked.
+ *                   'effects' may be comma- or pipe-separated.
+ *
+ * Every *_palId value is forced to plain-text format before writing
+ * and self-repaired on read, because Google Sheets silently turns a
+ * numeric-looking string like "001" into the number 1 otherwise —
+ * which breaks every lookup keyed by it (this hit both 'pals.palId'
+ * and 'breedingLog''s three palId columns in earlier versions).
  */
-var BREEDING_SHEET_NAME = 'BreedingLog';
-var BREEDING_HEADERS = [
-  'id', 'createdAt',
-  'parentA_palId', 'parentA_sex', 'parentA_passives', 'parentA_actives',
-  'parentB_palId', 'parentB_sex', 'parentB_passives', 'parentB_actives',
-  'offspring_palId', 'offspring_sex', 'offspring_passives', 'offspring_actives',
-  'notes'
-];
 
-// [id, number, suffix, name, types joined with "|"] — mirrors the app's
-// built-in PALS array so the tab starts out matching what's on-screen.
 var PALS_SEED = [
   ["001",1,"","Lamball","NE"],
   ["002",2,"","Cattiva","NE"],
@@ -336,6 +331,7 @@ var PALS_SEED = [
   ["201",201,"","Neptilius","WA"],
   ["202",202,"","Jetragon","DR"]
 ];
+
 var PARTNER_SKILLS_SEED = [
   ["100","Hug Me Please","While in party, +50% damage dealt to enemies afflicted with Ivy-Covered (no stacking)."],
   ["101","Cool Body","Rideable; in party grants the player +2 Heat Resistance (no stacking)."],
@@ -514,14 +510,6 @@ var TYPES_SEED = [
   ["DR","Dragon"]
 ];
 
-var ACTIVE_SKILLS_SHEET_NAME = 'ActiveSkillsDB';
-var ACTIVE_SKILLS_HEADERS = ['Name', 'Element', 'Power', 'CT', 'Notes'];
-
-var ELEMENTS_SHEET_NAME = 'ElementsDB';
-var ELEMENTS_HEADERS = ['TypeCode', 'Name', 'ImageUrl'];
-
-// [name, rank, surgeryApplicable, effects joined with "|"] — mirrors the
-// app's built-in PASSIVE_SKILLS array so the tab starts out matching.
 var PASSIVE_SKILLS_SEED = [
   ["Demon's Hand",5,true,"Work Speed +90%|SAN drains 15% faster|World Tree resources stay put when approached"],
   ["Dimensional Leap",5,true,"Move Speed +50%|Hunger drains 15% faster|World Tree resources stay put when approached"],
@@ -640,16 +628,33 @@ var PASSIVE_SKILLS_SEED = [
   ["Slacker",-3,false,"Work Speed -30%"]
 ];
 
+var BREEDING_SHEET_NAME = 'breedingLog';
+var BREEDING_HEADERS = [
+  'id', 'createdAt',
+  'parentA_palId', 'parentA_sex', 'parentA_passives', 'parentA_actives',
+  'parentB_palId', 'parentB_sex', 'parentB_passives', 'parentB_actives',
+  'offspring_palId', 'offspring_sex', 'offspring_passives', 'offspring_actives',
+  'notes'
+];
 
-var PASSIVE_SKILLS_SHEET_NAME = 'PassiveSkillsDB';
-var PASSIVE_SKILLS_HEADERS = ['Name', 'Rank', 'Surgery', 'Effects'];
+var PALS_SHEET_NAME = 'pals';
+var PALS_HEADERS = ['id', 'palId', 'name', 'type', 'imageUrl', 'discovered'];
 
-var PALS_SHEET_NAME = 'PalsDB';
-// Full header set the app understands. New sheets get all of these;
-// existing sheets get missing ones appended (never removed/reordered),
-// so re-pasting this script never destroys anything you've edited.
-var PALS_HEADERS = ['PalId', 'Number', 'Suffix', 'Name', 'Types', 'ImageUrl', 'Discovered', 'PartnerSkill', 'PartnerSkillDesc'];
+var PARTNER_SKILLS_SHEET_NAME = 'partnerSkills';
+var PARTNER_SKILLS_HEADERS = ['id', 'palId', 'palName', 'name', 'description'];
 
+var ACTIVE_SKILLS_SHEET_NAME = 'activeSkills';
+var ACTIVE_SKILLS_HEADERS = ['id', 'name', 'element', 'power', 'ct', 'exclusive', 'description', 'notes'];
+
+var ELEMENTS_SHEET_NAME = 'elements';
+var ELEMENTS_HEADERS = ['id', 'code', 'name', 'imageUrl'];
+
+var PASSIVE_SKILLS_SHEET_NAME = 'passiveSkills';
+var PASSIVE_SKILLS_HEADERS = ['id', 'name', 'rank', 'surgery', 'effects', 'unlocked'];
+
+/* ============================================================
+   GENERIC HELPERS
+   ============================================================ */
 function getSecret_() {
   return PropertiesService.getScriptProperties().getProperty('SECRET') || '';
 }
@@ -663,9 +668,11 @@ function jsonOut_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
+// Exact match, case-insensitive — every read/write below looks columns
+// up by name through this, never by fixed position.
 function headerIndex_(header, name) {
   var lower = header.map(function (h) { return String(h || '').toLowerCase().trim(); });
-  return lower.indexOf(name.toLowerCase());
+  return lower.indexOf(String(name).toLowerCase());
 }
 
 function isTruthyCell_(v) {
@@ -674,177 +681,152 @@ function isTruthyCell_(v) {
   return s === 'yes' || s === 'y' || s === 'true' || s === '1' || s === 'x';
 }
 
-/* ---------- BreedingLog ---------- */
-function getBreedingSheet_() {
+// A "multi-value" cell may be comma- or pipe-separated: our own writes
+// use "|", but a Sheets multi-select dropdown column auto-joins with
+// ", " — tolerate both on every read so it doesn't matter which one
+// produced the cell.
+function splitMulti_(v) {
+  if (!v) return [];
+  return String(v).split(/[|,]/).map(function (s) { return s.trim(); }).filter(function (s) { return s; });
+}
+
+function padPalId_(n) {
+  var s = String(n);
+  while (s.length < 3) s = '0' + s;
+  return s;
+}
+
+// Forces a column to plain-text format for its current rows AND a
+// generous span of future rows, so appending new data later doesn't
+// get silently re-coerced into numbers.
+function ensureTextColumn_(sheet, colIndex1) {
+  var maxRows = sheet.getMaxRows();
+  if (maxRows > 1) sheet.getRange(2, colIndex1, maxRows - 1, 1).setNumberFormat('@');
+}
+
+// Repairs any cell in a palId column that Sheets already turned into a
+// number, restoring the zero-padded string. Safe and unambiguous: only
+// suffix-less ids ("001".."202") are ever numeric-coercible in the
+// first place — a suffixed id like "005B" is never a number to begin
+// with, so it's never touched here.
+function repairPalIdColumn_(sheet, colIndex1, startRow, numRows) {
+  if (numRows <= 0) return;
+  var range = sheet.getRange(startRow, colIndex1, numRows, 1);
+  var values = range.getValues();
+  var changed = false;
+  var fixed = values.map(function (r) {
+    var v = r[0];
+    if (typeof v === 'number') { changed = true; return [padPalId_(v)]; }
+    return [v];
+  });
+  if (changed) {
+    range.setNumberFormat('@');
+    range.setValues(fixed);
+  }
+}
+
+function getSheetOrCreate_(name, headers, seedRows) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(BREEDING_SHEET_NAME);
+  var sheet = ss.getSheetByName(name);
   if (!sheet) {
-    sheet = ss.insertSheet(BREEDING_SHEET_NAME);
-    sheet.appendRow(BREEDING_HEADERS);
+    sheet = ss.insertSheet(name);
+    sheet.appendRow(headers);
+    if (seedRows && seedRows.length) {
+      sheet.getRange(2, 1, seedRows.length, headers.length).setValues(seedRows);
+    }
   }
   return sheet;
 }
 
-function rowToEntry_(row) {
+/* ============================================================
+   breedingLog — fully owned by the app
+   ============================================================ */
+function getBreedingSheet_() {
+  var sheet = getSheetOrCreate_(BREEDING_SHEET_NAME, BREEDING_HEADERS, []);
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var palIdCols = ['parentA_palId', 'parentB_palId', 'offspring_palId']
+    .map(function (h) { return headerIndex_(header, h) + 1; })
+    .filter(function (c) { return c > 0; });
+  var lastRow = sheet.getLastRow();
+  palIdCols.forEach(function (c) {
+    ensureTextColumn_(sheet, c);
+    if (lastRow > 1) repairPalIdColumn_(sheet, c, 2, lastRow - 1);
+  });
+  return sheet;
+}
+
+function rowToEntry_(row, header) {
+  function get(name) {
+    var i = headerIndex_(header, name);
+    return i === -1 ? '' : row[i];
+  }
   return {
-    id: row[0],
-    createdAt: row[1],
-    parentA: { palId: row[2], sex: row[3], passives: row[4] ? String(row[4]).split('|') : [], actives: row[5] ? String(row[5]).split('|') : [] },
-    parentB: { palId: row[6], sex: row[7], passives: row[8] ? String(row[8]).split('|') : [], actives: row[9] ? String(row[9]).split('|') : [] },
-    offspring: { palId: row[10], sex: row[11], passives: row[12] ? String(row[12]).split('|') : [], actives: row[13] ? String(row[13]).split('|') : [] },
-    notes: row[14] || ''
+    id: String(get('id') || ''),
+    createdAt: String(get('createdAt') || ''),
+    parentA: {
+      palId: String(get('parentA_palId') || ''), sex: String(get('parentA_sex') || ''),
+      passives: splitMulti_(get('parentA_passives')), actives: splitMulti_(get('parentA_actives'))
+    },
+    parentB: {
+      palId: String(get('parentB_palId') || ''), sex: String(get('parentB_sex') || ''),
+      passives: splitMulti_(get('parentB_passives')), actives: splitMulti_(get('parentB_actives'))
+    },
+    offspring: {
+      palId: String(get('offspring_palId') || ''), sex: String(get('offspring_sex') || ''),
+      passives: splitMulti_(get('offspring_passives')), actives: splitMulti_(get('offspring_actives'))
+    },
+    notes: String(get('notes') || '')
   };
 }
 
-function entryToRow_(e) {
+function entryToRow_(e, header) {
   var pa = e.parentA || {}, pb = e.parentB || {}, off = e.offspring || {};
-  return [
-    e.id, e.createdAt,
-    pa.palId || '', pa.sex || '', (pa.passives || []).join('|'), (pa.actives || []).join('|'),
-    pb.palId || '', pb.sex || '', (pb.passives || []).join('|'), (pb.actives || []).join('|'),
-    off.palId || '', off.sex || '', (off.passives || []).join('|'), (off.actives || []).join('|'),
-    e.notes || ''
-  ];
+  var map = {
+    id: e.id, createdAt: e.createdAt,
+    parentA_palId: pa.palId || '', parentA_sex: pa.sex || '',
+    parentA_passives: (pa.passives || []).join('|'), parentA_actives: (pa.actives || []).join('|'),
+    parentB_palId: pb.palId || '', parentB_sex: pb.sex || '',
+    parentB_passives: (pb.passives || []).join('|'), parentB_actives: (pb.actives || []).join('|'),
+    offspring_palId: off.palId || '', offspring_sex: off.sex || '',
+    offspring_passives: (off.passives || []).join('|'), offspring_actives: (off.actives || []).join('|'),
+    notes: e.notes || ''
+  };
+  return header.map(function (h) { return map.hasOwnProperty(h) ? map[h] : ''; });
 }
 
-function findRowIndexById_(sheet, id) {
-  var values = sheet.getDataRange().getValues();
-  for (var i = 1; i < values.length; i++) {
-    if (values[i][0] === id) return i + 1;
+function findRowIndexById_(sheet, header, id) {
+  var idCol = headerIndex_(header, 'id');
+  if (idCol === -1) idCol = 0;
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return -1;
+  var ids = sheet.getRange(2, idCol + 1, lastRow - 1, 1).getValues();
+  for (var i = 0; i < ids.length; i++) {
+    if (String(ids[i][0]) === id) return i + 2;
   }
   return -1;
 }
 
-/* ---------- PalsDB (seeded once, then additively migrated) ---------- */
-function partnerSkillLookup_() {
-  var map = {};
-  PARTNER_SKILLS_SEED.forEach(function (r) { map[r[0]] = { name: r[1], desc: r[2] }; });
-  return map;
-}
-
-// Sheets auto-detects cell type on write, same as typing into the UI:
-// a plain string like "001" silently becomes the number 1, dropping
-// the leading zero — which breaks every lookup keyed by PalId (partner
-// skill backfill, the app's picture/discovered lookups, everything).
-// Forcing the column to plain-text format before writing prevents it.
-function ensurePalIdsAreText_(sheet, header) {
-  var idCol = headerIndex_(header, 'PalId');
-  if (idCol === -1) return;
-  var lastRow = sheet.getLastRow();
-  if (lastRow < 2) return;
-  var numCol = headerIndex_(header, 'Number');
-  var sufCol = headerIndex_(header, 'Suffix');
-
-  var idRange = sheet.getRange(2, idCol + 1, lastRow - 1, 1);
-  var ids = idRange.getValues();
-  var numbers = numCol !== -1 ? sheet.getRange(2, numCol + 1, lastRow - 1, 1).getValues() : null;
-  var suffixes = sufCol !== -1 ? sheet.getRange(2, sufCol + 1, lastRow - 1, 1).getValues() : null;
-
-  var changed = false;
-  var fixed = ids.map(function (r, i) {
-    var v = r[0];
-    if (typeof v === 'number') {
-      changed = true;
-      var n = numbers ? numbers[i][0] : v;
-      var s = suffixes ? (suffixes[i][0] || '') : '';
-      var nStr = String(n);
-      while (nStr.length < 3) nStr = '0' + nStr;
-      return [nStr + s];
-    }
-    return [String(v)];
-  });
-
-  if (changed) {
-    idRange.setNumberFormat('@'); // plain text, so the rewrite below doesn't get re-coerced
-    idRange.setValues(fixed);
-  }
-}
-
-// Fills only blank PartnerSkill/PartnerSkillDesc cells from the app's
-// own data — runs every time, not just when the columns are first
-// created, so a sheet that was previously backfilled incorrectly (e.g.
-// while PalId was still numeric-coerced) heals itself once the IDs are
-// fixed, without ever overwriting a cell you've edited by hand.
-function backfillPartnerSkills_(sheet, header) {
-  var idCol = headerIndex_(header, 'PalId');
-  var psCol = headerIndex_(header, 'PartnerSkill');
-  var psdCol = headerIndex_(header, 'PartnerSkillDesc');
-  if (idCol === -1 || psCol === -1 || psdCol === -1) return;
-  var lastRow = sheet.getLastRow();
-  if (lastRow < 2) return;
-
-  var psLookup = partnerSkillLookup_();
-  var ids = sheet.getRange(2, idCol + 1, lastRow - 1, 1).getValues();
-  var names = sheet.getRange(2, psCol + 1, lastRow - 1, 1).getValues();
-  var descs = sheet.getRange(2, psdCol + 1, lastRow - 1, 1).getValues();
-
-  var nameFixes = [], descFixes = [];
-  for (var i = 0; i < ids.length; i++) {
-    var ps = psLookup[String(ids[i][0])];
-    if (!ps) continue;
-    if (!names[i][0]) nameFixes.push({ row: i, value: ps.name });
-    if (!descs[i][0]) descFixes.push({ row: i, value: ps.desc });
-  }
-  nameFixes.forEach(function (f) { sheet.getRange(2 + f.row, psCol + 1).setValue(f.value); });
-  descFixes.forEach(function (f) { sheet.getRange(2 + f.row, psdCol + 1).setValue(f.value); });
-}
-
+/* ============================================================
+   pals — id, palId, name, type, imageUrl, discovered
+   ============================================================ */
 function getPalsSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(PALS_SHEET_NAME);
-  var psLookup = partnerSkillLookup_();
-
   if (!sheet) {
     sheet = ss.insertSheet(PALS_SHEET_NAME);
     sheet.appendRow(PALS_HEADERS);
-    var rows = PALS_SEED.map(function (p) {
-      var ps = psLookup[p[0]] || { name: '', desc: '' };
-      return [p[0], p[1], p[2], p[3], p[4], '', '', ps.name, ps.desc];
-    });
-    // PalId column must be plain-text formatted BEFORE writing, or
-    // Sheets silently turns "001" into 1 (see ensurePalIdsAreText_).
-    sheet.getRange(2, 1, rows.length, 1).setNumberFormat('@');
+    var rows = PALS_SEED.map(function (p, i) { return [i + 1, p[0], p[3], p[4].split('|').join(', '), '', '']; });
+    sheet.getRange(2, 2, rows.length, 1).setNumberFormat('@'); // palId column
     sheet.getRange(2, 1, rows.length, PALS_HEADERS.length).setValues(rows);
     return sheet;
   }
-
-  // Repair any PalId cells Sheets auto-coerced into numbers, then
-  // re-derive header (a repair doesn't change columns, but keep this
-  // explicit) before the additive migration below.
-  var headerNow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  ensurePalIdsAreText_(sheet, headerNow);
-
-  // Additive migration: append any header this tab doesn't have yet.
-  // Never reorders or touches an existing column, so past edits (like
-  // pictures you've already pasted in) are always safe.
-  var lastRow = sheet.getLastRow();
-  PALS_HEADERS.forEach(function (col) {
-    var lastCol = sheet.getLastColumn();
-    var header = lastCol ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
-    if (headerIndex_(header, col) !== -1) return;
-
-    var newColIdx = lastCol + 1;
-    sheet.getRange(1, newColIdx).setValue(col);
-    if ((col === 'PartnerSkill' || col === 'PartnerSkillDesc') && lastRow > 1) {
-      var idCol = headerIndex_(header, 'PalId');
-      if (idCol === -1) idCol = 0; // PalId is always column A on any sheet this script created
-      var ids = sheet.getRange(2, idCol + 1, lastRow - 1, 1).getValues();
-      var fill = ids.map(function (r) {
-        var ps = psLookup[String(r[0])] || { name: '', desc: '' };
-        return [col === 'PartnerSkill' ? ps.name : ps.desc];
-      });
-      sheet.getRange(2, newColIdx, fill.length, 1).setValues(fill);
-    }
-    // Discovered / ImageUrl (and anything else) are left blank for
-    // pre-existing rows — nothing to backfill them from.
-  });
-
-  // Self-heal: fill any still-blank PartnerSkill/PartnerSkillDesc cells
-  // now that PalId is guaranteed correct (covers sheets that were
-  // backfilled incorrectly by an earlier, buggier version of this script).
-  var headerAfter = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  backfillPartnerSkills_(sheet, headerAfter);
-
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var palIdCol = headerIndex_(header, 'palId') + 1;
+  if (palIdCol > 0) {
+    ensureTextColumn_(sheet, palIdCol);
+    var lastRow = sheet.getLastRow();
+    if (lastRow > 1) repairPalIdColumn_(sheet, palIdCol, 2, lastRow - 1);
+  }
   return sheet;
 }
 
@@ -853,91 +835,115 @@ function readPals_() {
   var values = sheet.getDataRange().getValues();
   if (values.length < 2) return [];
   var header = values[0];
-  var cId = headerIndex_(header, 'PalId'), cNum = headerIndex_(header, 'Number'),
-    cSuf = headerIndex_(header, 'Suffix'), cName = headerIndex_(header, 'Name'),
-    cTypes = headerIndex_(header, 'Types'), cImg = headerIndex_(header, 'ImageUrl'),
-    cDisc = headerIndex_(header, 'Discovered'), cPS = headerIndex_(header, 'PartnerSkill'),
-    cPSD = headerIndex_(header, 'PartnerSkillDesc');
-
+  var cId = headerIndex_(header, 'palId'), cName = headerIndex_(header, 'name'),
+    cType = headerIndex_(header, 'type'), cImg = headerIndex_(header, 'imageUrl'),
+    cDisc = headerIndex_(header, 'discovered');
   var out = [];
   for (var i = 1; i < values.length; i++) {
     var row = values[i];
     if (cId === -1 || !row[cId]) continue;
     out.push({
       id: String(row[cId]),
-      number: cNum !== -1 ? row[cNum] : '',
-      suffix: cSuf !== -1 ? String(row[cSuf] || '') : '',
       name: cName !== -1 ? String(row[cName] || '') : '',
-      types: cTypes !== -1 && row[cTypes] ? String(row[cTypes]).split('|') : [],
+      types: cType !== -1 ? splitMulti_(row[cType]) : [],
       imageUrl: cImg !== -1 ? String(row[cImg] || '') : '',
-      discovered: cDisc !== -1 ? isTruthyCell_(row[cDisc]) : false,
-      partnerSkillName: cPS !== -1 ? String(row[cPS] || '') : '',
-      partnerSkillDesc: cPSD !== -1 ? String(row[cPSD] || '') : ''
+      discovered: cDisc !== -1 ? isTruthyCell_(row[cDisc]) : false
     });
   }
   return out;
 }
 
-function setDiscovered_(palId, discovered) {
-  var sheet = getPalsSheet_();
-  var lastCol = sheet.getLastColumn();
+function findPalRow_(sheet, header, palId) {
+  var idCol = headerIndex_(header, 'palId');
+  if (idCol === -1) return -1;
   var lastRow = sheet.getLastRow();
-  if (lastRow < 2) return false;
-  var header = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-  var idCol = headerIndex_(header, 'PalId');
-  var discCol = headerIndex_(header, 'Discovered');
-  if (idCol === -1 || discCol === -1) return false;
+  if (lastRow < 2) return -1;
   var ids = sheet.getRange(2, idCol + 1, lastRow - 1, 1).getValues();
   for (var i = 0; i < ids.length; i++) {
-    if (String(ids[i][0]) === palId) {
-      sheet.getRange(i + 2, discCol + 1).setValue(discovered ? 'Yes' : '');
-      return true;
-    }
+    if (String(ids[i][0]) === palId) return i + 2;
   }
-  return false;
+  return -1;
 }
+
+function setPalField_(palId, fieldName, value) {
+  var sheet = getPalsSheet_();
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var colIdx = headerIndex_(header, fieldName);
+  if (colIdx === -1) return false;
+  var rowIdx = findPalRow_(sheet, header, palId);
+  if (rowIdx === -1) return false;
+  sheet.getRange(rowIdx, colIdx + 1).setValue(value);
+  return true;
+}
+
+function setDiscovered_(palId, discovered) { return setPalField_(palId, 'discovered', discovered ? 'Yes' : ''); }
+function setPalImageUrl_(palId, imageUrl) { return setPalField_(palId, 'imageUrl', imageUrl || ''); }
 
 function clearAllDiscovered_() {
   var sheet = getPalsSheet_();
-  var lastCol = sheet.getLastColumn();
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var discCol = headerIndex_(header, 'discovered');
+  if (discCol === -1) return;
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return;
-  var header = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-  var discCol = headerIndex_(header, 'Discovered');
-  if (discCol === -1) return;
   var blanks = [];
   for (var i = 0; i < lastRow - 1; i++) blanks.push(['']);
   sheet.getRange(2, discCol + 1, blanks.length, 1).setValues(blanks);
 }
 
-/* ---------- ActiveSkillsDB (left empty — the user pastes their own source) ---------- */
-function getActiveSkillsSheet_() {
+/* ============================================================
+   partnerSkills — its own tab: id, palId, palName, name, description
+   ============================================================ */
+function palNameLookup_() {
+  var map = {};
+  PALS_SEED.forEach(function (p) { map[p[0]] = p[3]; });
+  return map;
+}
+
+function getPartnerSkillsSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(ACTIVE_SKILLS_SHEET_NAME);
+  var sheet = ss.getSheetByName(PARTNER_SKILLS_SHEET_NAME);
   if (!sheet) {
-    sheet = ss.insertSheet(ACTIVE_SKILLS_SHEET_NAME);
-    sheet.appendRow(ACTIVE_SKILLS_HEADERS);
+    sheet = ss.insertSheet(PARTNER_SKILLS_SHEET_NAME);
+    sheet.appendRow(PARTNER_SKILLS_HEADERS);
+    var names = palNameLookup_();
+    var rows = PARTNER_SKILLS_SEED.map(function (p, i) { return [i + 1, p[0], names[p[0]] || '', p[1], p[2]]; });
+    sheet.getRange(2, 2, rows.length, 1).setNumberFormat('@'); // palId column
+    sheet.getRange(2, 1, rows.length, PARTNER_SKILLS_HEADERS.length).setValues(rows);
+    return sheet;
+  }
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var palIdCol = headerIndex_(header, 'palId') + 1;
+  if (palIdCol > 0) {
+    ensureTextColumn_(sheet, palIdCol);
+    var lastRow = sheet.getLastRow();
+    if (lastRow > 1) repairPalIdColumn_(sheet, palIdCol, 2, lastRow - 1);
   }
   return sheet;
 }
 
-// Matches header cells against a concept loosely, so a pasted source
-// doesn't have to use our exact column names. Tries an exact match
-// across every column first, only falling back to substring matching
-// if nothing matched exactly — otherwise a header like "Effect" would
-// wrongly match the "ct" candidate (it contains "ct").
-function findColumn_(headerRow, candidates) {
-  var headers = headerRow.map(function (h) { return String(h || '').toLowerCase().trim(); });
-  for (var j = 0; j < candidates.length; j++) {
-    var exact = headers.indexOf(candidates[j]);
-    if (exact !== -1) return exact;
+function readPartnerSkills_() {
+  var sheet = getPartnerSkillsSheet_();
+  var values = sheet.getDataRange().getValues();
+  if (values.length < 2) return [];
+  var header = values[0];
+  var cPal = headerIndex_(header, 'palId'), cName = headerIndex_(header, 'name'), cDesc = headerIndex_(header, 'description');
+  var out = [];
+  for (var i = 1; i < values.length; i++) {
+    var row = values[i];
+    if (cPal === -1 || !row[cPal]) continue;
+    var name = cName !== -1 ? String(row[cName] || '') : '';
+    if (!name) continue;
+    out.push({ palId: String(row[cPal]), name: name, description: cDesc !== -1 ? String(row[cDesc] || '') : '' });
   }
-  for (var i = 0; i < headers.length; i++) {
-    for (var k = 0; k < candidates.length; k++) {
-      if (headers[i].indexOf(candidates[k]) !== -1) return i;
-    }
-  }
-  return -1;
+  return out;
+}
+
+/* ============================================================
+   activeSkills — you populate this; only 'name' is required
+   ============================================================ */
+function getActiveSkillsSheet_() {
+  return getSheetOrCreate_(ACTIVE_SKILLS_SHEET_NAME, ACTIVE_SKILLS_HEADERS, []);
 }
 
 function readActiveSkills_() {
@@ -945,40 +951,32 @@ function readActiveSkills_() {
   var values = sheet.getDataRange().getValues();
   if (values.length < 2) return [];
   var header = values[0];
-  var nameCol = findColumn_(header, ['name', 'skill']);
-  var elCol = findColumn_(header, ['element', 'type']);
-  var powCol = findColumn_(header, ['power']);
-  var ctCol = findColumn_(header, ['ct', 'cooldown']);
-  var notesCol = findColumn_(header, ['notes', 'description']);
-  if (nameCol === -1) return [];
-
+  var cName = headerIndex_(header, 'name'), cEl = headerIndex_(header, 'element'),
+    cPow = headerIndex_(header, 'power'), cCt = headerIndex_(header, 'ct'),
+    cExcl = headerIndex_(header, 'exclusive'), cDesc = headerIndex_(header, 'description'),
+    cNotes = headerIndex_(header, 'notes');
   var out = [];
   for (var i = 1; i < values.length; i++) {
     var row = values[i];
-    var name = row[nameCol];
-    if (!name) continue;
+    if (cName === -1 || !row[cName]) continue;
     out.push({
-      name: String(name),
-      element: elCol !== -1 ? String(row[elCol] || '') : '',
-      power: powCol !== -1 ? String(row[powCol] || '') : '',
-      ct: ctCol !== -1 ? String(row[ctCol] || '') : '',
-      notes: notesCol !== -1 ? String(row[notesCol] || '') : ''
+      name: String(row[cName]),
+      element: cEl !== -1 ? splitMulti_(row[cEl]) : [],
+      power: cPow !== -1 ? String(row[cPow] || '') : '',
+      ct: cCt !== -1 ? String(row[cCt] || '') : '',
+      exclusive: cExcl !== -1 ? splitMulti_(row[cExcl]) : [],
+      description: cDesc !== -1 ? String(row[cDesc] || '') : (cNotes !== -1 ? String(row[cNotes] || '') : '')
     });
   }
   return out;
 }
 
-/* ---------- ElementsDB (seeded once with the 9 types) ---------- */
+/* ============================================================
+   elements — id, code, name, imageUrl
+   ============================================================ */
 function getElementsSheet_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(ELEMENTS_SHEET_NAME);
-  if (!sheet) {
-    sheet = ss.insertSheet(ELEMENTS_SHEET_NAME);
-    sheet.appendRow(ELEMENTS_HEADERS);
-    var rows = TYPES_SEED.map(function (t) { return [t[0], t[1], '']; });
-    sheet.getRange(2, 1, rows.length, ELEMENTS_HEADERS.length).setValues(rows);
-  }
-  return sheet;
+  var seedRows = TYPES_SEED.map(function (t, i) { return [i + 1, t[0], t[1], '']; });
+  return getSheetOrCreate_(ELEMENTS_SHEET_NAME, ELEMENTS_HEADERS, seedRows);
 }
 
 function readElements_() {
@@ -986,7 +984,7 @@ function readElements_() {
   var values = sheet.getDataRange().getValues();
   if (values.length < 2) return [];
   var header = values[0];
-  var cCode = headerIndex_(header, 'TypeCode'), cName = headerIndex_(header, 'Name'), cImg = headerIndex_(header, 'ImageUrl');
+  var cCode = headerIndex_(header, 'code'), cName = headerIndex_(header, 'name'), cImg = headerIndex_(header, 'imageUrl');
   var out = [];
   for (var i = 1; i < values.length; i++) {
     var row = values[i];
@@ -996,15 +994,26 @@ function readElements_() {
   return out;
 }
 
-/* ---------- PassiveSkillsDB (seeded once with the app's built-in list) ---------- */
+/* ============================================================
+   passiveSkills — id, name, rank, surgery, effects, unlocked
+   'unlocked' is the one column this script adds to an existing
+   tab if it's missing, purpose-built for tracking which passives
+   you've discovered — appended at the end, nothing else touched.
+   ============================================================ */
 function getPassiveSkillsSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(PASSIVE_SKILLS_SHEET_NAME);
   if (!sheet) {
     sheet = ss.insertSheet(PASSIVE_SKILLS_SHEET_NAME);
     sheet.appendRow(PASSIVE_SKILLS_HEADERS);
-    var rows = PASSIVE_SKILLS_SEED.map(function (p) { return [p[0], p[1], p[2] ? 'Yes' : '', p[3]]; });
+    var rows = PASSIVE_SKILLS_SEED.map(function (p, i) { return [i + 1, p[0], p[1], p[2] ? 'Yes' : '', p[3], '']; });
     sheet.getRange(2, 1, rows.length, PASSIVE_SKILLS_HEADERS.length).setValues(rows);
+    return sheet;
+  }
+  var lastCol = sheet.getLastColumn();
+  var header = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  if (headerIndex_(header, 'unlocked') === -1) {
+    sheet.getRange(1, lastCol + 1).setValue('unlocked');
   }
   return sheet;
 }
@@ -1014,34 +1023,71 @@ function readPassiveSkills_() {
   var values = sheet.getDataRange().getValues();
   if (values.length < 2) return [];
   var header = values[0];
-  var cName = headerIndex_(header, 'Name'), cRank = headerIndex_(header, 'Rank'),
-    cSurg = headerIndex_(header, 'Surgery'), cEff = headerIndex_(header, 'Effects');
+  var cName = headerIndex_(header, 'name'), cRank = headerIndex_(header, 'rank'),
+    cSurg = headerIndex_(header, 'surgery'), cEff = headerIndex_(header, 'effects'),
+    cUnlock = headerIndex_(header, 'unlocked');
   var out = [];
   for (var i = 1; i < values.length; i++) {
     var row = values[i];
     if (cName === -1 || !row[cName]) continue;
     out.push({
       name: String(row[cName]),
-      rank: cRank !== -1 ? Number(row[cRank]) || 0 : 0,
+      rank: cRank !== -1 ? (Number(row[cRank]) || 0) : 0,
       surgery: cSurg !== -1 ? isTruthyCell_(row[cSurg]) : false,
-      effects: cEff !== -1 && row[cEff] ? String(row[cEff]).split('|') : []
+      effects: cEff !== -1 ? splitMulti_(row[cEff]) : [],
+      unlocked: cUnlock !== -1 ? isTruthyCell_(row[cUnlock]) : false
     });
   }
   return out;
 }
 
+function setPassiveUnlocked_(name, unlocked) {
+  var sheet = getPassiveSkillsSheet_();
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var nameCol = headerIndex_(header, 'name');
+  var unlockCol = headerIndex_(header, 'unlocked');
+  if (nameCol === -1 || unlockCol === -1) return false;
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return false;
+  var names = sheet.getRange(2, nameCol + 1, lastRow - 1, 1).getValues();
+  for (var i = 0; i < names.length; i++) {
+    if (String(names[i][0]) === name) {
+      sheet.getRange(i + 2, unlockCol + 1).setValue(unlocked ? 'Yes' : '');
+      return true;
+    }
+  }
+  return false;
+}
+
+function clearAllPassivesUnlocked_() {
+  var sheet = getPassiveSkillsSheet_();
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var unlockCol = headerIndex_(header, 'unlocked');
+  if (unlockCol === -1) return;
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+  var blanks = [];
+  for (var i = 0; i < lastRow - 1; i++) blanks.push(['']);
+  sheet.getRange(2, unlockCol + 1, blanks.length, 1).setValues(blanks);
+}
+
+/* ============================================================
+   HTTP entry points
+   ============================================================ */
 function doGet(e) {
   if (!checkSecret_(e.parameter.secret)) {
     return jsonOut_({ ok: false, error: 'Unauthorized — the SECRET sent by the app does not match this deployment\'s Script Property.' });
   }
   var sheet = getBreedingSheet_();
   var values = sheet.getDataRange().getValues();
-  var rows = values.slice(1).filter(function (r) { return r[0]; });
-  var entries = rows.map(rowToEntry_);
+  var header = values[0];
+  var rows = values.slice(1).filter(function (r) { return r.some(function (c) { return c !== '' && c !== null; }); });
+  var entries = rows.map(function (r) { return rowToEntry_(r, header); });
   return jsonOut_({
     ok: true,
     entries: entries,
     pals: readPals_(),
+    partnerSkills: readPartnerSkills_(),
     activeSkills: readActiveSkills_(),
     elements: readElements_(),
     passiveSkills: readPassiveSkills_()
@@ -1059,41 +1105,32 @@ function doPost(e) {
     return jsonOut_({ ok: false, error: 'Unauthorized — the SECRET sent by the app does not match this deployment\'s Script Property.' });
   }
 
-  if (body.action === 'setDiscovered') {
-    setDiscovered_(body.payload.palId, body.payload.discovered);
-    return jsonOut_({ ok: true });
-  }
-
-  if (body.action === 'setDiscoveredBatch') {
-    (body.payload.palIds || []).forEach(function (id) { setDiscovered_(id, true); });
-    return jsonOut_({ ok: true });
-  }
-
-  if (body.action === 'clearDiscovered') {
-    clearAllDiscovered_();
-    return jsonOut_({ ok: true });
-  }
+  if (body.action === 'setDiscovered') { setDiscovered_(body.payload.palId, body.payload.discovered); return jsonOut_({ ok: true }); }
+  if (body.action === 'setDiscoveredBatch') { (body.payload.palIds || []).forEach(function (id) { setDiscovered_(id, true); }); return jsonOut_({ ok: true }); }
+  if (body.action === 'clearDiscovered') { clearAllDiscovered_(); return jsonOut_({ ok: true }); }
+  if (body.action === 'setPalImageUrl') { setPalImageUrl_(body.payload.palId, body.payload.imageUrl); return jsonOut_({ ok: true }); }
+  if (body.action === 'setPassiveUnlocked') { setPassiveUnlocked_(body.payload.name, body.payload.unlocked); return jsonOut_({ ok: true }); }
+  if (body.action === 'setPassiveUnlockedBatch') { (body.payload.names || []).forEach(function (n) { setPassiveUnlocked_(n, true); }); return jsonOut_({ ok: true }); }
+  if (body.action === 'clearPassivesUnlocked') { clearAllPassivesUnlocked_(); return jsonOut_({ ok: true }); }
 
   var sheet = getBreedingSheet_();
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 
   if (body.action === 'add') {
-    sheet.appendRow(entryToRow_(body.payload));
+    sheet.appendRow(entryToRow_(body.payload, header));
     return jsonOut_({ ok: true });
   }
 
   if (body.action === 'update') {
-    var idx = findRowIndexById_(sheet, body.payload.id);
-    if (idx === -1) {
-      sheet.appendRow(entryToRow_(body.payload));
-    } else {
-      var row = entryToRow_(body.payload);
-      sheet.getRange(idx, 1, 1, row.length).setValues([row]);
-    }
+    var idx = findRowIndexById_(sheet, header, body.payload.id);
+    var row = entryToRow_(body.payload, header);
+    if (idx === -1) sheet.appendRow(row);
+    else sheet.getRange(idx, 1, 1, row.length).setValues([row]);
     return jsonOut_({ ok: true });
   }
 
   if (body.action === 'delete') {
-    var delIdx = findRowIndexById_(sheet, body.payload.id);
+    var delIdx = findRowIndexById_(sheet, header, body.payload.id);
     if (delIdx !== -1) sheet.deleteRow(delIdx);
     return jsonOut_({ ok: true });
   }
