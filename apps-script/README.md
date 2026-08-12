@@ -113,20 +113,13 @@ pick it up automatically (no code change needed).
   elements, passive skills) is cached in the browser's `localStorage`
   too, so the app keeps working from your last successful sync if the
   Sheet is temporarily unreachable.
-- **Every `*_palId` value is forced to plain-text format before
-  writing, and self-repaired on read.** Google Sheets silently turns a
-  numeric-looking string like `"001"` into the number `1` otherwise —
-  this bit both `pals.palId` and `breedingLog`'s three palId columns
-  in earlier versions of this script, which is why a breeding entry
-  could show a Pal's number instead of its name and picture after a
-  page reload. If you're updating from an older script version, just
-  redeploy (see above) and the next sync repairs any already-corrupted
-  cells automatically.
-- **If a palId column has a Sheets "column type" applied** (right-click
-  the column header → Column type → anything other than the default),
-  forcing it to plain-text format throws
+- **`*_palId` columns are read tolerantly, never rewritten.** A palId
+  cell can be the text `"001"` or the real number `1` (e.g. shown
+  zero-padded via a custom number format like `000`) — either is
+  normalized to `"001"` in memory when the app reads it. The script
+  never calls `setNumberFormat`/`setValues` to change a palId cell's
+  type or format, so it can't fight with however you've set that
+  column up — including a Sheets "column type" (right-click header →
+  Column type), which used to make this throw
   `Exception: You can't set the number format of cells in a typed
-  column.` The script catches this so it no longer crashes the whole
-  request, but that column loses the auto-repair described above —
-  clear its column type (Column type → remove/reset) if you hit this,
-  so palIds there stay reliable.
+  column.` in earlier versions of this script.

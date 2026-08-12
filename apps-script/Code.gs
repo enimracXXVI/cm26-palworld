@@ -38,11 +38,12 @@
  *  - passiveSkills: id, name, rank, surgery, effects, unlocked.
  *                   'effects' may be comma- or pipe-separated.
  *
- * Every *_palId value is forced to plain-text format before writing
- * and self-repaired on read, because Google Sheets silently turns a
- * numeric-looking string like "001" into the number 1 otherwise —
- * which breaks every lookup keyed by it (this hit both 'pals.palId'
- * and 'breedingLog''s three palId columns in earlier versions).
+ * Every *_palId column is read tolerantly: the cell may be the text
+ * "001" or the real number 1 (e.g. displayed zero-padded via a custom
+ * number format like "000") — either is normalized to "001" in memory
+ * on read via normalizePalId_(). Nothing is ever written back to
+ * change a palId cell's type or format; the sheet is left exactly as
+ * you set it up.
  */
 
 var PALS_SEED = [
@@ -669,7 +670,7 @@ function checkSecret_(secret) {
 // actually running this version — editing the code in the Apps Script
 // editor does NOT update what's live until you redeploy (see header
 // comment), which is easy to think you did and not have actually done.
-var SCRIPT_BUILD = '2026-08-12.6';
+var SCRIPT_BUILD = '2026-08-12.7';
 
 function jsonOut_(obj) {
   obj._build = SCRIPT_BUILD;
@@ -704,50 +705,15 @@ function padPalId_(n) {
   return s;
 }
 
-// Forces a column to plain-text format for its current rows AND a
-// generous span of future rows, so appending new data later doesn't
-// get silently re-coerced into numbers. Wrapped in try/catch: a column
-// with a Sheets "column type" applied (right-click header -> Column
-// type -> anything other than default) throws here instead of
-// formatting, since its format is then controlled by that type system
-// — not fatal, just means that column loses this line of defense.
-function ensureTextColumn_(sheet, colIndex1) {
-  var maxRows = sheet.getMaxRows();
-  if (maxRows > 1) {
-    try { sheet.getRange(2, colIndex1, maxRows - 1, 1).setNumberFormat('@'); }
-    catch (e) { /* typed column — see comment above */ }
-  }
-}
-
-// Repairs any cell in a palId column that Sheets already turned into a
-// number, restoring the zero-padded string. Safe and unambiguous: only
-// suffix-less ids ("001".."202") are ever numeric-coercible in the
-// first place — a suffixed id like "005B" is never a number to begin
-// with, so it's never touched here.
-// The whole write (format + values) is one try/catch, not just the
-// setNumberFormat call: writing a string back into a Sheets "column
-// type" (smart chip) column can itself throw the identical "can't set
-// the number format of cells in a typed column" error from
-// setValues(), not just from setNumberFormat() — Sheets has to change
-// the cell's format to accept a string there, and that's blocked the
-// same way. If that column can't be repaired at all, skip it entirely
-// rather than half-writing.
-function repairPalIdColumn_(sheet, colIndex1, startRow, numRows) {
-  if (numRows <= 0) return;
-  try {
-    var range = sheet.getRange(startRow, colIndex1, numRows, 1);
-    var values = range.getValues();
-    var changed = false;
-    var fixed = values.map(function (r) {
-      var v = r[0];
-      if (typeof v === 'number') { changed = true; return [padPalId_(v)]; }
-      return [v];
-    });
-    if (changed) {
-      try { range.setNumberFormat('@'); } catch (e) { /* typed column */ }
-      range.setValues(fixed);
-    }
-  } catch (e) { /* typed column — this column can't be repaired, skip it */ }
+// A palId cell may legitimately be a real number in the sheet (e.g.
+// formatted with a custom number format like "000" so it displays
+// zero-padded) rather than a text string — that's the actual cell
+// type the person chose, not something to "fix." This never writes
+// anything back to the sheet; it just normalizes whatever's there
+// into the "001"-style string the app matches on, in memory, on read.
+function normalizePalId_(v) {
+  if (typeof v === 'number') return padPalId_(v);
+  return String(v || '');
 }
 
 function getSheetOrCreate_(name, headers, seedRows) {
@@ -767,17 +733,7 @@ function getSheetOrCreate_(name, headers, seedRows) {
    breedingLog — fully owned by the app
    ============================================================ */
 function getBreedingSheet_() {
-  var sheet = getSheetOrCreate_(BREEDING_SHEET_NAME, BREEDING_HEADERS, []);
-  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  var palIdCols = ['parentA_palId', 'parentB_palId', 'offspring_palId']
-    .map(function (h) { return headerIndex_(header, h) + 1; })
-    .filter(function (c) { return c > 0; });
-  var lastRow = sheet.getLastRow();
-  palIdCols.forEach(function (c) {
-    ensureTextColumn_(sheet, c);
-    if (lastRow > 1) repairPalIdColumn_(sheet, c, 2, lastRow - 1);
-  });
-  return sheet;
+  return getSheetOrCreate_(BREEDING_SHEET_NAME, BREEDING_HEADERS, []);
 }
 
 function rowToEntry_(row, header) {
@@ -789,15 +745,15 @@ function rowToEntry_(row, header) {
     id: String(get('id') || ''),
     createdAt: String(get('createdAt') || ''),
     parentA: {
-      palId: String(get('parentA_palId') || ''), sex: String(get('parentA_sex') || ''),
+      palId: normalizePalId_(get('parentA_palId')), sex: String(get('parentA_sex') || ''),
       passives: splitMulti_(get('parentA_passives')), actives: splitMulti_(get('parentA_actives'))
     },
     parentB: {
-      palId: String(get('parentB_palId') || ''), sex: String(get('parentB_sex') || ''),
+      palId: normalizePalId_(get('parentB_palId')), sex: String(get('parentB_sex') || ''),
       passives: splitMulti_(get('parentB_passives')), actives: splitMulti_(get('parentB_actives'))
     },
     offspring: {
-      palId: String(get('offspring_palId') || ''), sex: String(get('offspring_sex') || ''),
+      palId: normalizePalId_(get('offspring_palId')), sex: String(get('offspring_sex') || ''),
       passives: splitMulti_(get('offspring_passives')), actives: splitMulti_(get('offspring_actives'))
     },
     notes: String(get('notes') || '')
@@ -841,16 +797,7 @@ function getPalsSheet_() {
     sheet = ss.insertSheet(PALS_SHEET_NAME);
     sheet.appendRow(PALS_HEADERS);
     var rows = PALS_SEED.map(function (p, i) { return [i + 1, p[0], p[3], p[4].split('|').join(', '), '', '']; });
-    try { sheet.getRange(2, 2, rows.length, 1).setNumberFormat('@'); } catch (e) { /* typed column — see ensureTextColumn_ */ } // palId column
     sheet.getRange(2, 1, rows.length, PALS_HEADERS.length).setValues(rows);
-    return sheet;
-  }
-  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  var palIdCol = headerIndex_(header, 'palId') + 1;
-  if (palIdCol > 0) {
-    ensureTextColumn_(sheet, palIdCol);
-    var lastRow = sheet.getLastRow();
-    if (lastRow > 1) repairPalIdColumn_(sheet, palIdCol, 2, lastRow - 1);
   }
   return sheet;
 }
@@ -868,7 +815,7 @@ function readPals_() {
     var row = values[i];
     if (cId === -1 || !row[cId]) continue;
     out.push({
-      id: String(row[cId]),
+      id: normalizePalId_(row[cId]),
       name: cName !== -1 ? String(row[cName] || '') : '',
       types: cType !== -1 ? splitMulti_(row[cType]) : [],
       imageUrl: cImg !== -1 ? String(row[cImg] || '') : '',
@@ -885,7 +832,7 @@ function findPalRow_(sheet, header, palId) {
   if (lastRow < 2) return -1;
   var ids = sheet.getRange(2, idCol + 1, lastRow - 1, 1).getValues();
   for (var i = 0; i < ids.length; i++) {
-    if (String(ids[i][0]) === palId) return i + 2;
+    if (normalizePalId_(ids[i][0]) === palId) return i + 2;
   }
   return -1;
 }
@@ -933,16 +880,7 @@ function getPartnerSkillsSheet_() {
     sheet.appendRow(PARTNER_SKILLS_HEADERS);
     var names = palNameLookup_();
     var rows = PARTNER_SKILLS_SEED.map(function (p, i) { return [i + 1, p[0], names[p[0]] || '', p[1], p[2]]; });
-    try { sheet.getRange(2, 2, rows.length, 1).setNumberFormat('@'); } catch (e) { /* typed column — see ensureTextColumn_ */ } // palId column
     sheet.getRange(2, 1, rows.length, PARTNER_SKILLS_HEADERS.length).setValues(rows);
-    return sheet;
-  }
-  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  var palIdCol = headerIndex_(header, 'palId') + 1;
-  if (palIdCol > 0) {
-    ensureTextColumn_(sheet, palIdCol);
-    var lastRow = sheet.getLastRow();
-    if (lastRow > 1) repairPalIdColumn_(sheet, palIdCol, 2, lastRow - 1);
   }
   return sheet;
 }
@@ -959,7 +897,7 @@ function readPartnerSkills_() {
     if (cPal === -1 || !row[cPal]) continue;
     var name = cName !== -1 ? String(row[cName] || '') : '';
     if (!name) continue;
-    out.push({ palId: String(row[cPal]), name: name, description: cDesc !== -1 ? String(row[cDesc] || '') : '' });
+    out.push({ palId: normalizePalId_(row[cPal]), name: name, description: cDesc !== -1 ? String(row[cDesc] || '') : '' });
   }
   return out;
 }
@@ -1099,52 +1037,28 @@ function clearAllPassivesUnlocked_() {
 /* ============================================================
    HTTP entry points
    ============================================================ */
-// Each source is read inside its own try/catch and tagged by name in
-// the error, instead of one try/catch around everything — so if
-// something throws, the response says exactly which tab it was
-// (e.g. "Sheet error in pals: ..."), rather than us having to guess
-// among six tabs and a dozen call sites.
-function readTagged_(tag, fn) {
-  try { return { tag: tag, value: fn() }; }
-  catch (err) { return { tag: tag, error: (err && err.message) || String(err) }; }
-}
-
 function doGet(e) {
   if (!checkSecret_(e.parameter.secret)) {
     return jsonOut_({ ok: false, error: 'Unauthorized — the SECRET sent by the app does not match this deployment\'s Script Property.' });
   }
-  var results = [
-    readTagged_('breedingLog', function () {
-      var sheet = getBreedingSheet_();
-      var values = sheet.getDataRange().getValues();
-      var header = values[0];
-      var rows = values.slice(1).filter(function (r) { return r.some(function (c) { return c !== '' && c !== null; }); });
-      return rows.map(function (r) { return rowToEntry_(r, header); });
-    }),
-    readTagged_('pals', readPals_),
-    readTagged_('partnerSkills', readPartnerSkills_),
-    readTagged_('activeSkills', readActiveSkills_),
-    readTagged_('elements', readElements_),
-    readTagged_('passiveSkills', readPassiveSkills_)
-  ];
-  var failed = results.filter(function (r) { return r.error; });
-  if (failed.length) {
+  try {
+    var sheet = getBreedingSheet_();
+    var values = sheet.getDataRange().getValues();
+    var header = values[0];
+    var rows = values.slice(1).filter(function (r) { return r.some(function (c) { return c !== '' && c !== null; }); });
+    var entries = rows.map(function (r) { return rowToEntry_(r, header); });
     return jsonOut_({
-      ok: false,
-      error: 'Sheet error in ' + failed.map(function (r) { return r.tag; }).join(', ') + ': ' + failed[0].error
+      ok: true,
+      entries: entries,
+      pals: readPals_(),
+      partnerSkills: readPartnerSkills_(),
+      activeSkills: readActiveSkills_(),
+      elements: readElements_(),
+      passiveSkills: readPassiveSkills_()
     });
+  } catch (err) {
+    return jsonOut_({ ok: false, error: 'Sheet error: ' + err.message });
   }
-  var byTag = {};
-  results.forEach(function (r) { byTag[r.tag] = r.value; });
-  return jsonOut_({
-    ok: true,
-    entries: byTag.breedingLog,
-    pals: byTag.pals,
-    partnerSkills: byTag.partnerSkills,
-    activeSkills: byTag.activeSkills,
-    elements: byTag.elements,
-    passiveSkills: byTag.passiveSkills
-  });
 }
 
 function doPost(e) {
