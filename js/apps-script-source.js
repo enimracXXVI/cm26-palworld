@@ -823,7 +823,7 @@ function getPalsSheet_() {
     sheet = ss.insertSheet(PALS_SHEET_NAME);
     sheet.appendRow(PALS_HEADERS);
     var rows = PALS_SEED.map(function (p, i) { return [i + 1, p[0], p[3], p[4].split('|').join(', '), '', '']; });
-    sheet.getRange(2, 2, rows.length, 1).setNumberFormat('@'); // palId column
+    try { sheet.getRange(2, 2, rows.length, 1).setNumberFormat('@'); } catch (e) { /* typed column — see ensureTextColumn_ */ } // palId column
     sheet.getRange(2, 1, rows.length, PALS_HEADERS.length).setValues(rows);
     return sheet;
   }
@@ -915,7 +915,7 @@ function getPartnerSkillsSheet_() {
     sheet.appendRow(PARTNER_SKILLS_HEADERS);
     var names = palNameLookup_();
     var rows = PARTNER_SKILLS_SEED.map(function (p, i) { return [i + 1, p[0], names[p[0]] || '', p[1], p[2]]; });
-    sheet.getRange(2, 2, rows.length, 1).setNumberFormat('@'); // palId column
+    try { sheet.getRange(2, 2, rows.length, 1).setNumberFormat('@'); } catch (e) { /* typed column — see ensureTextColumn_ */ } // palId column
     sheet.getRange(2, 1, rows.length, PARTNER_SKILLS_HEADERS.length).setValues(rows);
     return sheet;
   }
