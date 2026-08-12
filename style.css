@@ -799,12 +799,14 @@
   }
 
   /* ---------- view tabs ---------- */
-  .view-tabs{ margin:14px 0 0; width:fit-content; }
-  body[data-view="breeding"] #controlsPanel,
-  body[data-view="breeding"] #filtersToggle,
-  body[data-view="breeding"] #grid{ display:none !important; }
+  .view-tabs{ margin:14px 0 0; width:fit-content; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  body:not([data-view="palpedia"]) #controlsPanel,
+  body:not([data-view="palpedia"]) #filtersToggle,
+  body:not([data-view="palpedia"]) #grid{ display:none !important; }
   body:not([data-view="breeding"]) #breedToolbar,
   body:not([data-view="breeding"]) #breedingView{ display:none !important; }
+  body:not([data-view="styleguide"]) #styleguideView{ display:none !important; }
+  body:not([data-view="schema"]) #schemaView{ display:none !important; }
 
   /* ---------- breeding log ---------- */
   .breed-field-label{
@@ -1095,6 +1097,48 @@
   }
   .sheet-redeploy-note b{ color:var(--text-muted); }
 
+  /* ---------- global sheet-connect button (topbar, all views) ---------- */
+  .sheet-btn{ max-width:230px; }
+  .sheet-btn span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* ---------- style guide ---------- */
+  .sg-wrap{ display:flex; flex-direction:column; gap:26px; margin-top:22px; }
+  .sg-section h3{ margin:0 0 12px; font-size:15px; }
+  .sg-error{ color:var(--text-dim); font-size:13px; }
+  .sg-swatch-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; }
+  .sg-swatch{ background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:10px; }
+  .sg-swatch-color{ width:100%; height:44px; border-radius:7px; border:1px solid var(--border-strong); margin-bottom:8px; }
+  .sg-swatch-name{ display:block; font-family:var(--font-mono); font-size:11px; color:var(--text); }
+  .sg-swatch-value{ display:block; font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); margin-top:2px; }
+  .sg-token-list{ display:flex; flex-direction:column; gap:6px; }
+  .sg-token-row{ display:flex; justify-content:space-between; gap:12px; background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-family:var(--font-mono); font-size:12px; }
+  .sg-token-row code{ color:var(--text); }
+  .sg-token-row span{ color:var(--text-dim); }
+  .sg-type-sample{ background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; }
+  .sg-row{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+  .sg-card-demo{ display:flex; }
+
+  /* ---------- db schema ---------- */
+  .schema-wrap{ display:flex; flex-direction:column; gap:22px; margin-top:22px; }
+  .schema-tables{ display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; }
+  .schema-table{ background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; }
+  .schema-table-head{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .schema-table-head h3{ margin:0; font-family:var(--font-mono); font-size:15px; color:var(--accent); }
+  .schema-key{ font-size:11px; color:var(--text-dim); }
+  .schema-key code{ color:var(--text-muted); }
+  .schema-purpose{ font-size:12.5px; color:var(--text-muted); line-height:1.5; margin:8px 0 12px; }
+  .schema-cols{ display:flex; flex-direction:column; gap:8px; }
+  .schema-col-row{ display:grid; grid-template-columns:minmax(90px,auto) 1fr; gap:4px 10px; align-items:start; padding:6px 0; border-top:1px solid var(--border); }
+  .schema-col-row:first-child{ border-top:none; }
+  .schema-col-name{ font-size:11.5px; color:var(--text); white-space:nowrap; }
+  .schema-col-notes{ font-size:11.5px; color:var(--text-dim); line-height:1.45; grid-column:1 / -1; }
+  .schema-col-row.written .schema-col-name{ color:var(--accent); }
+  .schema-written-badge{ font-family:var(--font-mono); font-size:9px; text-transform:uppercase; letter-spacing:.04em; color:var(--accent); background:var(--accent-soft); border:1px solid var(--accent-dim); border-radius:20px; padding:1.5px 7px; justify-self:start; }
+  .schema-relationships{ background:var(--bg-alt); border:1px dashed var(--border-strong); border-radius:var(--radius); padding:14px 16px; }
+  .schema-relationships h3{ margin:0 0 8px; font-size:13px; color:var(--text-muted); }
+  .schema-relationships ul{ margin:0; padding-left:18px; display:flex; flex-direction:column; gap:6px; }
+  .schema-relationships li{ font-size:12.5px; color:var(--text-dim); line-height:1.5; }
+
   /* below this width, the filter controls collapse behind a toggle so the
      sticky header stays short instead of permanently eating the viewport */
   @media (max-width:860px){
@@ -1122,9 +1166,36 @@
     .gauge-block{ gap:6px; }
     .filters-toggle span{ display:none; }
     .filters-toggle{ padding:8px; }
-    #grid{ grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; }
     .passives-modal{ max-height:88vh; }
     .breed-block-row{ flex-direction:column; gap:10px; }
     .breed-toolbar{ flex-direction:column; align-items:stretch; }
-    #sheetSettingsBtn span{ overflow:hidden; text-overflow:ellipsis; }
+    .sheet-btn{ padding:8px; max-width:none; }
+    .sheet-btn span{ display:none; }
+    .view-tabs button{ padding:6px 9px; font-size:11.5px; }
+    .schema-tables{ grid-template-columns:1fr; }
+  }
+
+  /* below this width, cards drop to a compact grid so at least 4 fit
+     per row instead of 2 — partner-skill text and role-button labels
+     are trimmed since there's no room to keep them readable */
+  @media (max-width:600px){
+    .wrap{ padding:0 12px 64px; }
+    #grid{ grid-template-columns:repeat(auto-fill,minmax(74px,1fr)); gap:6px; }
+    .card{ padding:7px 7px 6px; gap:5px; border-radius:10px; }
+    .pal-no{ font-size:8.5px; }
+    .discover-check{ width:15px; height:15px; border-radius:4px; }
+    .discover-check svg{ width:9px; height:9px; }
+    .pal-image-box{ height:52px; border-radius:6px; }
+    .pal-image-box.empty{ padding:4px; gap:3px; }
+    .pal-image-box.empty span{ display:none; }
+    .pal-image-box.empty svg{ width:15px; height:15px; }
+    .image-edit-btn{ width:18px; height:18px; }
+    .image-edit-btn svg{ width:10px; height:10px; }
+    .pal-name{ font-size:10px; line-height:1.15; }
+    .type-row{ min-height:0; gap:3px; }
+    .type-pill{ font-size:7.5px; padding:2px 5px; }
+    .type-icon{ width:14px; height:14px; border-radius:4px; }
+    .partner-block{ display:none; }
+    .role-row{ gap:4px; padding-top:0; }
+    .role-btn{ font-size:0; padding:6px 2px; gap:0; }
   }

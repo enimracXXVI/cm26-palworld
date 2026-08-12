@@ -477,9 +477,13 @@ document.getElementById('imageRemove').addEventListener('click', async () => {
 function setView(view){
   document.body.dataset.view = view;
   document.querySelectorAll('#viewTabs button[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view));
-  document.getElementById('subPalpedia').style.display = view === 'breeding' ? 'none' : '';
-  document.getElementById('subBreeding').style.display = view === 'breeding' ? '' : 'none';
+  const subEls = { palpedia: 'subPalpedia', breeding: 'subBreeding', styleguide: 'subStyleguide', schema: 'subSchema' };
+  Object.keys(subEls).forEach(key => {
+    document.getElementById(subEls[key]).style.display = key === view ? '' : 'none';
+  });
   if(view === 'breeding') renderBreedEntries();
+  if(view === 'styleguide' && !styleGuideRendered){ styleGuideRendered = true; renderStyleGuide(); }
+  if(view === 'schema') renderSchema();
 }
 document.getElementById('viewTabs').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-view]');

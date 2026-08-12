@@ -38,16 +38,24 @@
           <span>Filters</span>
           <span class="filters-badge" id="filtersBadge" hidden></span>
         </button>
+        <button class="chip-toggle sheet-btn" id="sheetSettingsBtn" type="button" title="Connect a Google Sheet — this is also where you set the SECRET">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.04z"></path></svg>
+          <span id="sheetStatusLabel">Google Sheet: not connected</span>
+        </button>
       </div>
     </div>
 
     <div class="seg view-tabs" id="viewTabs">
       <button data-view="palpedia" class="active" type="button">Palpedia</button>
       <button data-view="breeding" type="button">Breeding Log</button>
+      <button data-view="styleguide" type="button">Style Guide</button>
+      <button data-view="schema" type="button">DB Schema</button>
     </div>
 
     <p class="sub" id="subPalpedia">Every catalogued Pal, in Palpedia order. Tick a Pal off once you've caught it — until then, its entry stays sealed.</p>
     <p class="sub" id="subBreeding" style="display:none;">Log the Pals you bred, what each parent was carrying, and what came out the other side. Optionally synced to a Google Sheet you control.</p>
+    <p class="sub" id="subStyleguide" style="display:none;">The colors, type, and components this app is built from — reads live from style.css, so it never drifts.</p>
+    <p class="sub" id="subSchema" style="display:none;">The Google Sheet tabs, columns, and relationships the app reads and writes — mirrors apps-script/Code.gs.</p>
 
     <div class="controls" id="controlsPanel">
       <div class="row1">
@@ -85,10 +93,6 @@
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
         <input id="breedSearchInput" type="text" placeholder="Search entries by Pal name…" autocomplete="off">
       </div>
-      <button class="chip-toggle" id="sheetSettingsBtn" type="button">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.04z"></path></svg>
-        <span id="sheetStatusLabel">Google Sheet: not connected</span>
-      </button>
     </div>
   </header>
 
@@ -101,6 +105,8 @@
     <div id="breedingView">
       <div id="breedEntries" class="breed-list"></div>
     </div>
+    <div id="styleguideView"></div>
+    <div id="schemaView"></div>
   </main>
 
   <footer>
@@ -219,6 +225,8 @@
 <script src="js/apps-script-source.js"></script>
 <script src="js/palpedia.js"></script>
 <script src="js/breeding-sheet-sync.js"></script>
+<script src="js/db-schema.js"></script>
+<script src="js/style-guide.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>
