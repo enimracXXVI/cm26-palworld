@@ -425,6 +425,15 @@
     color:var(--text-dim);
     font-weight:500;
   }
+  .type-icon{
+    width:22px;
+    height:22px;
+    border-radius:6px;
+    object-fit:cover;
+    border:1px solid var(--border);
+    background:var(--bg-alt);
+    vertical-align:middle;
+  }
 
   .role-row{
     display:flex;
@@ -910,6 +919,7 @@
 
   /* ---------- breeding form modal ---------- */
   .breed-form-modal{ max-width:560px; max-height:88vh; display:flex; flex-direction:column; overflow-y:auto; }
+  .sheet-modal{ max-width:520px; max-height:88vh; display:flex; flex-direction:column; overflow-y:auto; }
   .breed-form-body{ display:flex; flex-direction:column; gap:14px; margin:16px 0; }
   .breed-block{
     background:var(--bg-alt);
@@ -1051,6 +1061,17 @@
   }
   .sheet-status-line.ok{ color:var(--ok); }
   .sheet-status-line.err{ color:var(--danger); }
+  .sheet-redeploy-note{
+    font-size:11.5px;
+    color:var(--text-dim);
+    background:var(--bg-alt);
+    border:1px dashed var(--border-strong);
+    border-radius:8px;
+    padding:8px 10px;
+    line-height:1.5;
+    margin:-4px 0 14px;
+  }
+  .sheet-redeploy-note b{ color:var(--text-muted); }
 
   /* below this width, the filter controls collapse behind a toggle so the
      sticky header stays short instead of permanently eating the viewport */
@@ -1189,7 +1210,7 @@
 <div class="modal-overlay" id="resetModal" style="display:none;">
   <div class="modal">
     <h3>Reset all progress?</h3>
-    <p>This clears every "discovered" tick, every Base / Party assignment, every picture you've added, and every unlocked passive skill, on this device. This can't be undone.</p>
+    <p>This clears every "discovered" tick, every Base / Party assignment, every picture you've added, and every unlocked passive skill, on this device — and, if a Google Sheet is connected, the "Discovered" column there too. Your Breeding Log is not affected. This can't be undone.</p>
     <div class="modal-actions">
       <button id="resetCancel">Cancel</button>
       <button class="confirm" id="resetConfirm">Reset everything</button>
@@ -1268,8 +1289,9 @@
       <li>In the Apps Script editor: <b>Project Settings</b> (gear icon) → <b>Script Properties</b> → add a property named <code>SECRET</code> with any password you choose.</li>
       <li><b>Deploy → New deployment</b> → type <b>Web app</b> → Execute as <b>Me</b>, Who has access <b>Anyone</b> → <b>Deploy</b>, then authorize it.</li>
       <li>Copy the Web app URL it gives you and paste it below, along with the same SECRET.</li>
-      <li>Once connected, two more tabs appear on the sheet: <b>PalsDB</b> (pre-filled with every Pal — paste a picture URL into its <code>ImageUrl</code> column) and <b>ActiveSkillsDB</b> (empty — paste in your own active-skill data, at least a <code>Name</code> column, to turn the breeding form's active-skill field into a search list).</li>
+      <li>Once connected, three more tabs appear on the sheet: <b>PalsDB</b> (every Pal, pre-filled with Partner Skills — paste a picture URL into <code>ImageUrl</code>; <code>Discovered</code> is written by the app as you tick Pals off), <b>ActiveSkillsDB</b> (empty — paste your own active-skill data, at least a <code>Name</code> column), and <b>ElementsDB</b> (the 9 types — paste a picture per type to replace the colored pills).</li>
     </ol>
+    <p class="sheet-redeploy-note">Already connected and pasting in an updated script? Editing the code alone doesn't update your live URL — go to <b>Deploy → Manage deployments</b> → pencil icon → <b>Version: New version</b> → <b>Deploy</b>.</p>
     <button class="wiki-link" id="copyScriptBtn" type="button" style="width:100%; margin-bottom:14px;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
       Copy the Apps Script code
@@ -2020,13 +2042,16 @@ function cardTemplate(p){
   const typesHtml = discovered
     ? types.map(t => {
         const meta = TYPE_META[t];
-        return `<span class="type-pill" style="background:var(${meta.var})">${meta.label}</span>`;
+        const elImg = elementImageDb[t];
+        return elImg
+          ? `<img class="type-icon" src="${escapeHtml(elImg)}" alt="${meta.label}" title="${meta.label}" loading="lazy" onerror="this.outerHTML='<span class=&quot;type-pill&quot; style=&quot;background:var(${meta.var})&quot;>${meta.label}</span>'">`
+          : `<span class="type-pill" style="background:var(${meta.var})">${meta.label}</span>`;
       }).join('')
     : `<span class="type-pill ghost">?</span>`;
 
   let partnerHtml = '';
   if (discovered) {
-    const ps = PARTNER_SKILLS[id];
+    const ps = palPartnerSkillDb[id] || PARTNER_SKILLS[id];
     partnerHtml = ps
       ? `<div class="partner-block"><div class="partner-label">Partner Skill</div><div class="partner-name">${escapeHtml(ps[0])}</div><div class="partner-desc">${escapeHtml(ps[1])}</div></div>`
       : `<div class="partner-block"><div class="partner-label">Partner Skill</div><div class="partner-empty">Not yet added</div></div>`;
@@ -2143,6 +2168,10 @@ document.getElementById('grid').addEventListener('click', (e) => {
       delete state.party[id];
       delete state.images[id];
     }
+    if(sheetConfig.url){
+      sheetSend('setDiscovered', { palId:id, discovered:now })
+        .catch(() => showToast('Could not update this Pal’s discovered status on your Google Sheet.', true));
+    }
   } else if(action === 'base'){
     if(!state.discovered[id]) return;
     state.base[id] = !state.base[id];
@@ -2253,7 +2282,7 @@ document.getElementById('passivesList').addEventListener('click', (e) => {
 const resetModal = document.getElementById('resetModal');
 document.getElementById('resetBtn').addEventListener('click', () => { resetModal.style.display = 'flex'; });
 document.getElementById('resetCancel').addEventListener('click', () => { resetModal.style.display = 'none'; });
-document.getElementById('resetConfirm').addEventListener('click', () => {
+document.getElementById('resetConfirm').addEventListener('click', async () => {
   state = { discovered:{}, base:{}, party:{}, images:{}, passivesUnlocked:{} };
   try{
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -2264,6 +2293,11 @@ document.getElementById('resetConfirm').addEventListener('click', () => {
   render();
   renderPassives(document.getElementById('passiveSearch').value);
   showToast('Progress reset.');
+
+  if(sheetConfig.url){
+    try{ await sheetSend('clearDiscovered', {}); }
+    catch(e){ showToast('Reset locally, but could not clear "Discovered" on your Google Sheet — it will re-sync on next connect.', true); }
+  }
 });
 
 /* ============================================================
@@ -2347,6 +2381,8 @@ const BREEDING_STORAGE_KEY = 'palpedia-breeding-v1';
 const SHEET_CONFIG_KEY = 'palpedia-sheet-config-v1';
 const SHEET_DATA_CACHE_KEY = 'palpedia-sheet-data-cache-v1';
 let palImageDb = {};
+let palPartnerSkillDb = {};
+let elementImageDb = {};
 let activeSkillNames = [];
 
 function loadSheetDataCache(){
@@ -2355,11 +2391,13 @@ function loadSheetDataCache(){
     if(!raw) return;
     const cached = JSON.parse(raw);
     palImageDb = cached.palImageDb || {};
+    palPartnerSkillDb = cached.palPartnerSkillDb || {};
+    elementImageDb = cached.elementImageDb || {};
     (cached.activeSkillNames || []).forEach(n => activeSkillNames.push(n));
   }catch(e){}
 }
 function persistSheetDataCache(){
-  try{ localStorage.setItem(SHEET_DATA_CACHE_KEY, JSON.stringify({ palImageDb, activeSkillNames })); }catch(e){}
+  try{ localStorage.setItem(SHEET_DATA_CACHE_KEY, JSON.stringify({ palImageDb, palPartnerSkillDb, elementImageDb, activeSkillNames })); }catch(e){}
 }
 let breedingEntries = [];
 let sheetConfig = { url:'', secret:'' };
@@ -2376,22 +2414,37 @@ const APPS_SCRIPT_SOURCE = `/**
  * access: Anyone). Paste the resulting URL and your SECRET into the
  * app's "Google Sheet sync" settings.
  *
- * Three tabs are created automatically the first time the script runs
- * (a doGet call is enough — you don't need to run anything by hand):
+ * IMPORTANT if you're updating an existing deployment: editing this
+ * file alone does NOT change what your live Web app URL runs. Go to
+ * Deploy -> Manage deployments -> pencil icon on your deployment ->
+ * Version: New version -> Deploy. (Or make a fresh deployment, but
+ * then you must re-paste the new URL into the app.)
+ *
+ * Four tabs are created automatically the first time the script runs
+ * (a doGet call is enough — you don't need to run anything by hand),
+ * and existing tabs are migrated additively (new columns appended,
+ * nothing already there is ever touched):
  *
  *  - BreedingLog:    your logged breeding entries. Fully owned by the
  *                    app; don't hand-edit the columns.
  *  - PalsDB:         seeded once with the app's built-in 284-Pal
- *                    roster (id/number/suffix/name/types) and a blank
- *                    ImageUrl column. Paste a picture URL per row and
- *                    the app will show it for that Pal everywhere —
- *                    it's only seeded if the tab doesn't exist yet, so
- *                    your edits are never overwritten by this script.
+ *                    roster (id/number/suffix/name/types), each row's
+ *                    Partner Skill (backfilled from the app's own
+ *                    data where known), a blank ImageUrl column, and
+ *                    a blank Discovered column. Paste a picture URL
+ *                    per row to show it for that Pal everywhere. The
+ *                    Discovered column is written by the app itself
+ *                    when you tick a Pal off — you can also flip it
+ *                    by hand.
  *  - ActiveSkillsDB: created empty (headers only) — paste in your own
  *                    active-skill data (Name / Element / Power / CT /
  *                    Notes, in any order, extra columns ignored) and
  *                    the breeding form's active-skill field switches
  *                    from free text to a search-as-you-type list.
+ *  - ElementsDB:     seeded once with the 9 Palworld types (TypeCode /
+ *                    Name / blank ImageUrl). Paste a picture per type
+ *                    and the app shows that image instead of a
+ *                    colored pill wherever a Pal's types are listed.
  */
 var BREEDING_SHEET_NAME = 'BreedingLog';
 var BREEDING_HEADERS = [
@@ -2402,8 +2455,6 @@ var BREEDING_HEADERS = [
   'notes'
 ];
 
-var PALS_SHEET_NAME = 'PalsDB';
-var PALS_HEADERS = ['PalId', 'Number', 'Suffix', 'Name', 'Types', 'ImageUrl'];
 // [id, number, suffix, name, types joined with "|"] — mirrors the app's
 // built-in PALS array so the tab starts out matching what's on-screen.
 var PALS_SEED = [
@@ -2692,9 +2743,195 @@ var PALS_SEED = [
   ["201",201,"","Neptilius","WA"],
   ["202",202,"","Jetragon","DR"]
 ];
+var PARTNER_SKILLS_SEED = [
+  ["100","Hug Me Please","While in party, +50% damage dealt to enemies afflicted with Ivy-Covered (no stacking)."],
+  ["101","Cool Body","Rideable; in party grants the player +2 Heat Resistance (no stacking)."],
+  ["102","Grenadier Panda","Rideable; can fire a rapid grenade launcher while mounted."],
+  ["103","Wriggling Weasel","Rideable; while mounted, attack type becomes Dragon, +5% Attack."],
+  ["104","Flame Wing","Flying mount; while mounted, attack type becomes Fire, +5% Attack."],
+  ["105","Magma Overload","Rideable; Attack rises 4% per other Fire or Ground Pal in the party."],
+  ["106","Samba Step","Rideable; +155% Move Speed on grass while mounted."],
+  ["107","Drill Crusher","When activated, spins in Shell Spin form, following the player with +800% ore-mining efficiency."],
+  ["108","Love's First Blossom","Rideable; in party, picked-up Pal Eggs have a 35% chance to become Alpha Eggs (no stacking)."],
+  ["109","Soil Improver","In party, Ground-type Pals gain +15% Attack; may drop High Quality Pal Oil on Ranch duty."],
+  ["001","Fluffy Shield","Equips as a shield when activated; can drop Wool when placed on Ranch duty."],
+  ["002","Cat Helper","While in party, raises the player's carry weight limit by 100 (no stacking)."],
+  ["003","Egg Layer","May produce an Egg when placed on Ranch duty."],
+  ["004","Lifmunk Recoil","When activated, rides on the player's head and adds SMG fire to attacks."],
+  ["005","Surfing Slam","When activated, body-surfs into a target and slams them."],
+  ["005B","Fire Tackle","When activated, fire-surfs into a target and slams them."],
+  ["006","Dig Here!","May unearth items when placed on Ranch duty."],
+  ["007","Zephyr Glider","While in party, upgrades the glider: no fall damage, longer high-speed glides."],
+  ["007B","Jolt Glider","While in party, upgrades the glider: no fall damage, longer high-speed glides."],
+  ["008","Fluffy Wool","While in party, Neutral-type Pals gain +15% Attack; may drop Wool on Ranch duty."],
+  ["009","Leap Stance","When activated, inflates to launch the player skyward; airborne Attack +50% before landing."],
+  ["009B","Shadow Stance","Launches the player skyward like Croajiro; party also gets +25% Dark weak-point damage."],
+  ["010","Herbil Pulse","While in party, revives the player with 30% max HP when downed."],
+  ["011","Soothing Shower","While in party, heals 20% HP when the player drops below 30% (120s cooldown)."],
+  ["012","Logging Assistance","While in party, +30% logging speed and -40% wood weight."],
+  ["013","Best Boy","While in party, +10% melee weapon damage (no stacking)."],
+  ["014","Happy Clover","While at base, +1 Gathering suitability for every other base Pal (no stacking)."],
+  ["015","Jolt Bomb","When activated, throws Jolthog at a target for an Electric explosion."],
+  ["015B","Cold Bomb","When activated, throws Jolthog Cryst at a target for an Ice explosion."],
+  ["016","Caffeine Inoculation","When activated, doubles its own Move and Work Speed; may drop Venom Gland on Ranch duty."],
+  ["017","Pengullet Launcher","When activated, fires Pengullet from a rocket launcher; it explodes on impact and is knocked out."],
+  ["017B","Pengullet Lux Launcher","When activated, fires Pengullet Lux from a launcher; it explodes on impact and is knocked out."],
+  ["018","Brave Sailor","While in party, Fire-type Pals drop 40% more loot when defeated (no stacking)."],
+  ["018B","Unyielding Storm Commander","While in party, +25% Water weak-point damage for player and Pals (no stacking)."],
+  ["019","Dark Knowledge","While in party, Dark-type Pals gain +15% Attack (no stacking)."],
+  ["020","Pacapaca Wool","Rideable; while in party, boosts Kingpaca's Defense and Move Speed; may drop Wool on Ranch duty."],
+  ["021","King of Muscles","Rideable; Defense and Move Speed rise 5% per Melpaca in the party."],
+  ["021B","Coldhearted King","Rideable; Defense and Move Speed rise 5% per Melpaca in the party."],
+  ["022","Dream Chaser","While in party, hovers near the player and fires Dark bolts that can't finish off a target."],
+  ["023","Cheery Rifle","When activated, fires an assault rifle at nearby enemies for a short time."],
+  ["023B","Chipper Chimp Gunfire","When activated, fires a Fire assault rifle at nearby enemies for a short time."],
+  ["024","Kuudere","When activated, reveals nearby Pal Effigy locations."],
+  ["025","Magma Tears","While in party, heals player and party 0.1% HP/sec outside combat; may drop Flame Organ on Ranch duty."],
+  ["026","Tiny Spark","While in party, Fire-type Pals gain +15% Defense; may drop Flame Organ on Ranch duty."],
+  ["027","Gold Digger","May dig up Gold Coin when placed on Ranch duty."],
+  ["027B","Icy Whispers","May drop Ice Organ when placed on Ranch duty."],
+  ["028","Hard Head","Rideable; while mounted, +500% efficiency breaking Stone."],
+  ["029","Huggy Fire","When activated, equips as a flamethrower."],
+  ["029B","Huggy Frost","When activated, equips and attacks with freezing air."],
+  ["030","Fried Squid","While in party, glider gains gentle extended floating."],
+  ["030B","Fried Killamari","While in party, glider gains gentle extended floating."],
+  ["031","Mining Assistance","While in party, +30% mining speed and -80% Stone weight."],
+  ["032","Guardian of the Forest","Rideable; double-jump while mounted, +220% logging efficiency."],
+  ["032B","Guardian of the Golden Forest","Rideable, double-jump while mounted; at base, +1 Lumbering for other base Pals."],
+  ["033","Direhowl Rider","Rideable; slightly faster than most mounts."],
+  ["034","Berry Picker","May drop Red Berries on Ranch duty; in party, restores 100 hunger to the hungriest Pal every 5 min."],
+  ["034B","Venom Picker","May drop Venom Gland on Ranch duty; in party, restores 100 hunger to the hungriest Pal every 5 min."],
+  ["035","Fluffy","While in party, boosts Sweepa's Attack and Defense."],
+  ["036","King of Fluff","Rideable; Attack and Defense rise 12% per Swee in the party."],
+  ["037","Spikey Carrier","While in party, -80% Ore weight (no stacking)."],
+  ["037B","Shiny Hauler","While in party, -80% Sulfur/Coal weight and +80% Ground weak-point damage (no stacking)."],
+  ["038","Flying Trapeze","While in party, glider gains slow ascension."],
+  ["038B","Winter Trapeze","While in party, glider gains slow ascension."],
+  ["039","Candy Pop","May drop Cotton Candy on Ranch duty; at base, -10% base Pal hunger drain (no stacking)."],
+  ["039B","Bitter Pop","May drop Caramel Cotton Candy on Ranch duty; at base, -15% base Pal hunger drain (no stacking)."],
+  ["040","Milk Maker","May drop Milk when placed on Ranch duty."],
+  ["041","Waterwing Dance","Water-travel mount; while mounted, attack type becomes Water, +5% Attack."],
+  ["041B","Icewing Dance","Water-travel mount; while mounted, attack type becomes Ice, +5% Attack."],
+  ["042","Static Electricity","While in party, Electric-type Pals gain +15% Attack; may drop Electric Organ on Ranch duty."],
+  ["043","Aqua Spout","While in party, Water-type Pals gain +15% Attack; may drop Aquatic Pal Fluids on Ranch duty."],
+  ["043B","Lava Spout","While in party, Fire-type Pals gain +15% Attack; may drop Flame Organ on Ranch duty."],
+  ["044","Happy-Go-Lucky Bunny","In party, Neutral Pals +15% Attack; at base, +1 Handiwork for other base Pals."],
+  ["044B","Ground 'n' Pound","In party, +25% Grass weak-point damage; +200% efficiency at Weapon Workbench-type stations."],
+  ["045","Jelliette Drop","While in party, +55% fishing yield; boosts Jellroy's base watering speed while both are home."],
+  ["046","Jellroy Drop","While in party, +55% salvage yield; boosts Jelliette's base watering speed while both are home."],
+  ["047","Magical Twin Powers","At base, +1 Watering suitability for other base Pals (no stacking)."],
+  ["048","Sticky Princess","While in party, the fishing capture gauge drains 12% slower when bars aren't aligned."],
+  ["048B","Cephalo-Princess","While in party, Water-type Pals gain +15% Defense (no stacking)."],
+  ["049","Galeclaw Glider","While in party, glider gains high-speed flight and right-hand shooting."],
+  ["050","Death-Cheating Feline","While in party, raises capture rate when a back-attack bonus applies."],
+  ["051","Travel Companion","Rideable as a flying mount."],
+  ["052","Ultrasonic Sensor","When activated, pings nearby dungeons, chests, and scrap."],
+  ["053","Eggbomb Launcher","When activated, equips as an egg-firing launcher."],
+  ["054","Swift Deity","Rideable; in party, +25% Electric weak-point damage for player and Pals (no stacking)."],
+  ["054B","Frigid Deity","Rideable; while mounted, attack type becomes Ice, +5% Attack."],
+  ["055","Angry Shark","When activated, attacks with a boosted Aqua Gun; in party, +10% player Attack."],
+  ["055B","Angry Shark","When activated, attacks with a boosted Spirit Fire; in party, +10% player Attack."],
+  ["056","Dark Gleam Strike","When activated, strikes with a boosted claw attack; +15% melee attack speed in party."],
+  ["056B","Frozen Gleam Strike","When activated, strikes with a boosted ice-claw attack; +15% melee attack speed in party."],
+  ["057","Eerie Nightstreaker","Toggleable Night Vision; may dig up Bone on Ranch duty."],
+  ["058","Warm Body","Rideable; in party grants the player +2 Cold Resistance (no stacking)."],
+  ["059","Fluffy Flutterer","While in party, raises capture rate against Frozen targets (no stacking)."],
+  ["060","Princess Gaze","While in party, Grass-type Pals gain +15% Attack (no stacking)."],
+  ["061","Mysterious Scales","When activated, attacks with Poison Fog; at base, +1 Farming for other base Pals."],
+  ["062","Crackle Booster","At base, +1 Generating Electricity suitability for other base Pals (no stacking)."],
+  ["063","Amicable Holy Dragon","Flying mount, faster while flying; in party, Dark Pals drop 40% more loot (no stacking)."],
+  ["063B","Amicable Water Dragon","Flying mount, faster while flying; in party, -15% Fire damage taken and Burn immunity (no stacking)."],
+  ["064","Aerial Marauder","Flying mount; in party, +20% weak-point damage dealt by the player (no stacking)."],
+  ["064B","Aerial Marauder","Flying mount; in party, +30% weak-point damage dealt by the player (no stacking)."],
+  ["065","Life Steal","While fighting alongside the player, both gain 5% lifesteal on damage dealt."],
+  ["066","Purification of Gaia","In party, Ground-type Pals drop 40% more loot; may drop assorted seeds on Ranch duty."],
+  ["067","Worker Bee","While in party, boosts Elizabee's Attack; may drop Honey on Ranch duty."],
+  ["068","Queen Bee Command","Attack rises 12% per Beegarde in the party."],
+  ["069","Heart Drain","While fighting alongside the player, both gain 5% lifesteal on damage dealt."],
+  ["070","Glaring Cat's Eye","Rideable; in party, 50% chance of an extra Pal Egg on pickup (no stacking)."],
+  ["071","Tarantriss' Web","Rideable, double-jump while mounted; can fire webbing to grapple at high speed."],
+  ["072","Rider of the Snowy Mountain","Rideable, +80% Move Speed on snow while mounted; can slide down slopes."],
+  ["072B","Snowy Mountain Slider","Rideable, +80% Move Speed on snow while mounted; slope-sliding reaches a very high top speed."],
+  ["073","Too Cool to be Seen","When activated, turns itself and the player briefly undetectable to enemies."],
+  ["073B","Too Cool to be Seen","When activated, turns itself and the player briefly undetectable to enemies."],
+  ["074","Full-Power Gorilla Mode","When activated, +75% Attack for a limited time."],
+  ["074B","Full-Power Gorilla Pound","While in party, +50% player climbing speed (no stacking)."],
+  ["075","Swift Swimmer","Water-travel mount; may drop Leather on Ranch duty."],
+  ["075B","Sand Swimmer","Rideable; in party, player's attacks inflict Muddy 2 (no stacking)."],
+  ["076","Grounded Archer","While in party, +10% player bow damage (no stacking)."],
+  ["076B","Master Archer","While in party, +15% player bow charge speed (no stacking)."],
+  ["077","Helper Bunny","While in party, hovers near the player and auto-collects nearby items."],
+  ["078","Lord Fox","When activated, changes the player's attack type to Fire, +30% Attack."],
+  ["078B","Black Fox Lord","When activated, changes the player's attack type to Dark, +30% Attack."],
+  ["079","Mystical Black Magic","In party, Neutral Pals drop 40% more loot; 10% chance to save a thrown Sphere (no stacking)."],
+  ["079B","Blazing Black Magic","At base, +1 Kindling suitability for other base Pals (no stacking)."],
+  ["080","Wings of Death","Flying mount; while mounted, attack type becomes Dark, +5% Attack."],
+  ["080B","Wings of Thunder","Flying mount; while mounted, attack type becomes Electric, +5% Attack."],
+  ["081","Mother Nature's Menace","When activated, changes the player's attack type to Grass, +30% Attack."],
+  ["081B","Father Winter's Threat","While in party, lets the player Freeze Soaked enemies in one hit."],
+  ["082","Antigravity","While in party, Spheres home in on Pals and carry capacity +300 (no stacking)."],
+  ["083","Wind and Clouds","Rideable, double-jump while mounted."],
+  ["083B","Stormcloud","Rideable, double-jump while mounted; Water-type Pals drop 40% more loot (no stacking)."],
+  ["084","Fragrant Dragon","Rideable; in party, Dragon-type Pals gain +15% Defense (no stacking)."],
+  ["084B","Thunder Dragon","Rideable; in party, Electric-type Pals gain +15% Defense (no stacking)."],
+  ["085","Brandish Blade","When activated, unleashes a boosted Iaigiri strike."],
+  ["085B","Void Blade","When activated, unleashes a boosted Iaigiri strike; +30% melee damage out of combat (no stacking)."],
+  ["086","Icy Maw","In party, -30% weight for ingredients/food; paired with another Ice Pal, -30% food rot speed (no stacking)."],
+  ["087","Gaia Crusher","Rideable; while mounted, +220% logging and +500% mining efficiency."],
+  ["087B","Ice Crusher","Rideable; while mounted, +220% logging and +500% mining efficiency."],
+  ["088","Water Gun","When activated, changes the player's attack type to Water, +30% Attack."],
+  ["088B","Ember Chamber","In party, -60% weapon weight and +25% Fire weak-point damage (no stacking)."],
+  ["089","Blessing of the Flower Spirit","When activated, heals the player 75% HP; at base, +1 Planting for other base Pals."],
+  ["089B","Passion of the Flower Spirit","Heals the player 80% HP on activation; in party, -15% Grass damage taken plus immunity to Ivy-Covered."],
+  ["090","Selfless Discipline","Attack and Defense rise 2% for every other Grass-type Pal in the party."],
+  ["091","Flameclaw Hunter","When activated, unleashes a boosted Hellfire Claw strike."],
+  ["091B","Darkclaw Hunter","When activated, unleashes a boosted Nightmare Claw strike."],
+  ["092","Lady of Lightning","While in party, hovers near the player firing non-lethal Electric bolts."],
+  ["092B","Lady of Dark Lightning","While in party, hovers near the player firing non-lethal Dark bolts."],
+  ["093","Red Hare","Rideable; while mounted, attack type becomes Fire, +5% Attack."],
+  ["093B","Black Hare","Rideable; while mounted, attack type becomes Dark, +5% Attack."],
+  ["094","Hungry Missile","Rideable; can fire a rapid missile launcher while mounted."],
+  ["094B","Missile Party","Rideable; can fire a rapid missile launcher while mounted."],
+  ["095","Aurora Guide","In party, Ice-type Pals gain +15% Attack; may drop Ice Organ on Ranch duty."],
+  ["096","Thunderous","Flying mount; while mounted, attack type becomes Electric, +5% Attack; +5% Move Speed per other Electric party Pal."],
+  ["096B","Coldsnap","Flying mount; while mounted, attack type becomes Ice, +5% Attack; +5% Move Speed per other Ice party Pal."],
+  ["097","Master of Darkness","Water-travel mount; +5% Move Speed per other Dark or Water Pal in the party."],
+  ["097B","Abyssal Celebrity Chef","Water-travel mount; +5% Move Speed per other Fire or Water Pal in the party."],
+  ["098","Lightning Shepherd","Rideable, double-jump while mounted; +5% Move Speed per other Electric party Pal."],
+  ["098B","Snow Shepherd","Rideable, double-jump while mounted; Ice-type Pals gain +15% Defense in party."],
+  ["099","Steel Scorpion","In party, +5% player Defense; Electric-type Pals drop 40% more loot (no stacking)."],
+  ["099B","Golden Scorpion","In party, +5% player Defense; Electric-type Pals drop 40% more loot (no stacking)."],
+  ["100B","Hug You So Much","While in party, player's attacks inflict Ivy-Covered 2 (no stacking)."],
+  ["102B","Grenadier Panda","Rideable; can fire a rapid grenade launcher while mounted."],
+  ["103B","Sparkling Weasel","Rideable; while mounted, attack type becomes Fire, +5% Attack."],
+  ["105B","Ice Overload","Rideable; in party, +25% Ice weak-point damage (no stacking)."],
+  ["108B","Purity's Full Bloom","Rideable; in party, picked-up Pal Eggs have a 45% chance to become Alpha Eggs (no stacking)."],
+  ["109B","Golden Harvest","In party, +100% Gold Coin drops from enemies; may drop Pal Oil (and rarely Gold Coin) on Ranch duty."]
+];
+
+var TYPES_SEED = [
+  ["NE","Neutral"],
+  ["FI","Fire"],
+  ["WA","Water"],
+  ["GR","Grass"],
+  ["EL","Electric"],
+  ["IC","Ice"],
+  ["GD","Ground"],
+  ["DA","Dark"],
+  ["DR","Dragon"]
+];
 
 var ACTIVE_SKILLS_SHEET_NAME = 'ActiveSkillsDB';
 var ACTIVE_SKILLS_HEADERS = ['Name', 'Element', 'Power', 'CT', 'Notes'];
+
+var ELEMENTS_SHEET_NAME = 'ElementsDB';
+var ELEMENTS_HEADERS = ['TypeCode', 'Name', 'ImageUrl'];
+
+var PALS_SHEET_NAME = 'PalsDB';
+// Full header set the app understands. New sheets get all of these;
+// existing sheets get missing ones appended (never removed/reordered),
+// so re-pasting this script never destroys anything you've edited.
+var PALS_HEADERS = ['PalId', 'Number', 'Suffix', 'Name', 'Types', 'ImageUrl', 'Discovered', 'PartnerSkill', 'PartnerSkillDesc'];
 
 function getSecret_() {
   return PropertiesService.getScriptProperties().getProperty('SECRET') || '';
@@ -2707,6 +2944,17 @@ function checkSecret_(secret) {
 
 function jsonOut_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function headerIndex_(header, name) {
+  var lower = header.map(function (h) { return String(h || '').toLowerCase().trim(); });
+  return lower.indexOf(name.toLowerCase());
+}
+
+function isTruthyCell_(v) {
+  if (v === true) return true;
+  var s = String(v || '').trim().toLowerCase();
+  return s === 'yes' || s === 'y' || s === 'true' || s === '1' || s === 'x';
 }
 
 /* ---------- BreedingLog ---------- */
@@ -2750,36 +2998,117 @@ function findRowIndexById_(sheet, id) {
   return -1;
 }
 
-/* ---------- PalsDB (seeded once from the app's built-in roster) ---------- */
+/* ---------- PalsDB (seeded once, then additively migrated) ---------- */
+function partnerSkillLookup_() {
+  var map = {};
+  PARTNER_SKILLS_SEED.forEach(function (r) { map[r[0]] = { name: r[1], desc: r[2] }; });
+  return map;
+}
+
 function getPalsSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(PALS_SHEET_NAME);
+  var psLookup = partnerSkillLookup_();
+
   if (!sheet) {
     sheet = ss.insertSheet(PALS_SHEET_NAME);
     sheet.appendRow(PALS_HEADERS);
-    var rows = PALS_SEED.map(function (p) { return [p[0], p[1], p[2], p[3], p[4], '']; });
+    var rows = PALS_SEED.map(function (p) {
+      var ps = psLookup[p[0]] || { name: '', desc: '' };
+      return [p[0], p[1], p[2], p[3], p[4], '', '', ps.name, ps.desc];
+    });
     sheet.getRange(2, 1, rows.length, PALS_HEADERS.length).setValues(rows);
+    return sheet;
   }
+
+  // Additive migration: append any header this tab doesn't have yet.
+  // Never reorders or touches an existing column, so past edits (like
+  // pictures you've already pasted in) are always safe.
+  var lastRow = sheet.getLastRow();
+  PALS_HEADERS.forEach(function (col) {
+    var lastCol = sheet.getLastColumn();
+    var header = lastCol ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
+    if (headerIndex_(header, col) !== -1) return;
+
+    var newColIdx = lastCol + 1;
+    sheet.getRange(1, newColIdx).setValue(col);
+    if ((col === 'PartnerSkill' || col === 'PartnerSkillDesc') && lastRow > 1) {
+      var idCol = headerIndex_(header, 'PalId');
+      if (idCol === -1) idCol = 0; // PalId is always column A on any sheet this script created
+      var ids = sheet.getRange(2, idCol + 1, lastRow - 1, 1).getValues();
+      var fill = ids.map(function (r) {
+        var ps = psLookup[r[0]] || { name: '', desc: '' };
+        return [col === 'PartnerSkill' ? ps.name : ps.desc];
+      });
+      sheet.getRange(2, newColIdx, fill.length, 1).setValues(fill);
+    }
+    // Discovered / ImageUrl (and anything else) are left blank for
+    // pre-existing rows — nothing to backfill them from.
+  });
+
   return sheet;
 }
 
 function readPals_() {
   var sheet = getPalsSheet_();
   var values = sheet.getDataRange().getValues();
+  if (values.length < 2) return [];
+  var header = values[0];
+  var cId = headerIndex_(header, 'PalId'), cNum = headerIndex_(header, 'Number'),
+    cSuf = headerIndex_(header, 'Suffix'), cName = headerIndex_(header, 'Name'),
+    cTypes = headerIndex_(header, 'Types'), cImg = headerIndex_(header, 'ImageUrl'),
+    cDisc = headerIndex_(header, 'Discovered'), cPS = headerIndex_(header, 'PartnerSkill'),
+    cPSD = headerIndex_(header, 'PartnerSkillDesc');
+
   var out = [];
   for (var i = 1; i < values.length; i++) {
     var row = values[i];
-    if (!row[0]) continue;
+    if (cId === -1 || !row[cId]) continue;
     out.push({
-      id: String(row[0]),
-      number: row[1],
-      suffix: row[2] || '',
-      name: row[3] || '',
-      types: row[4] ? String(row[4]).split('|') : [],
-      imageUrl: row[5] || ''
+      id: String(row[cId]),
+      number: cNum !== -1 ? row[cNum] : '',
+      suffix: cSuf !== -1 ? (row[cSuf] || '') : '',
+      name: cName !== -1 ? (row[cName] || '') : '',
+      types: cTypes !== -1 && row[cTypes] ? String(row[cTypes]).split('|') : [],
+      imageUrl: cImg !== -1 ? (row[cImg] || '') : '',
+      discovered: cDisc !== -1 ? isTruthyCell_(row[cDisc]) : false,
+      partnerSkillName: cPS !== -1 ? (row[cPS] || '') : '',
+      partnerSkillDesc: cPSD !== -1 ? (row[cPSD] || '') : ''
     });
   }
   return out;
+}
+
+function setDiscovered_(palId, discovered) {
+  var sheet = getPalsSheet_();
+  var lastCol = sheet.getLastColumn();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return false;
+  var header = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var idCol = headerIndex_(header, 'PalId');
+  var discCol = headerIndex_(header, 'Discovered');
+  if (idCol === -1 || discCol === -1) return false;
+  var ids = sheet.getRange(2, idCol + 1, lastRow - 1, 1).getValues();
+  for (var i = 0; i < ids.length; i++) {
+    if (String(ids[i][0]) === palId) {
+      sheet.getRange(i + 2, discCol + 1).setValue(discovered ? 'Yes' : '');
+      return true;
+    }
+  }
+  return false;
+}
+
+function clearAllDiscovered_() {
+  var sheet = getPalsSheet_();
+  var lastCol = sheet.getLastColumn();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+  var header = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var discCol = headerIndex_(header, 'Discovered');
+  if (discCol === -1) return;
+  var blanks = [];
+  for (var i = 0; i < lastRow - 1; i++) blanks.push(['']);
+  sheet.getRange(2, discCol + 1, blanks.length, 1).setValues(blanks);
 }
 
 /* ---------- ActiveSkillsDB (left empty — the user pastes their own source) ---------- */
@@ -2833,9 +3162,37 @@ function readActiveSkills_() {
   return out;
 }
 
+/* ---------- ElementsDB (seeded once with the 9 types) ---------- */
+function getElementsSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(ELEMENTS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(ELEMENTS_SHEET_NAME);
+    sheet.appendRow(ELEMENTS_HEADERS);
+    var rows = TYPES_SEED.map(function (t) { return [t[0], t[1], '']; });
+    sheet.getRange(2, 1, rows.length, ELEMENTS_HEADERS.length).setValues(rows);
+  }
+  return sheet;
+}
+
+function readElements_() {
+  var sheet = getElementsSheet_();
+  var values = sheet.getDataRange().getValues();
+  if (values.length < 2) return [];
+  var header = values[0];
+  var cCode = headerIndex_(header, 'TypeCode'), cName = headerIndex_(header, 'Name'), cImg = headerIndex_(header, 'ImageUrl');
+  var out = [];
+  for (var i = 1; i < values.length; i++) {
+    var row = values[i];
+    if (cCode === -1 || !row[cCode]) continue;
+    out.push({ code: String(row[cCode]), name: cName !== -1 ? (row[cName] || '') : '', imageUrl: cImg !== -1 ? (row[cImg] || '') : '' });
+  }
+  return out;
+}
+
 function doGet(e) {
   if (!checkSecret_(e.parameter.secret)) {
-    return jsonOut_({ ok: false, error: 'Unauthorized' });
+    return jsonOut_({ ok: false, error: 'Unauthorized — the SECRET sent by the app does not match this deployment\'s Script Property.' });
   }
   var sheet = getBreedingSheet_();
   var values = sheet.getDataRange().getValues();
@@ -2845,7 +3202,8 @@ function doGet(e) {
     ok: true,
     entries: entries,
     pals: readPals_(),
-    activeSkills: readActiveSkills_()
+    activeSkills: readActiveSkills_(),
+    elements: readElements_()
   });
 }
 
@@ -2857,8 +3215,24 @@ function doPost(e) {
     return jsonOut_({ ok: false, error: 'Bad request' });
   }
   if (!checkSecret_(body.secret)) {
-    return jsonOut_({ ok: false, error: 'Unauthorized' });
+    return jsonOut_({ ok: false, error: 'Unauthorized — the SECRET sent by the app does not match this deployment\'s Script Property.' });
   }
+
+  if (body.action === 'setDiscovered') {
+    setDiscovered_(body.payload.palId, body.payload.discovered);
+    return jsonOut_({ ok: true });
+  }
+
+  if (body.action === 'setDiscoveredBatch') {
+    (body.payload.palIds || []).forEach(function (id) { setDiscovered_(id, true); });
+    return jsonOut_({ ok: true });
+  }
+
+  if (body.action === 'clearDiscovered') {
+    clearAllDiscovered_();
+    return jsonOut_({ ok: true });
+  }
+
   var sheet = getBreedingSheet_();
 
   if (body.action === 'add') {
@@ -2905,13 +3279,26 @@ function persistSheetConfig(){
 }
 
 /* ---------- Google Sheet sync ---------- */
+// Apps Script deployments most often "can't connect" for one of:
+// wrong/stale SECRET, "Who has access" not set to Anyone, or the URL
+// being a /dev test URL instead of the deployed /exec one — all three
+// come back as a non-JSON (HTML sign-in/error page) response, so we
+// surface that distinction instead of a single generic error.
+async function parseSheetResponse_(res){
+  const text = await res.text();
+  let data;
+  try{ data = JSON.parse(text); }
+  catch(e){
+    throw new Error(`The Sheet didn't return JSON (HTTP ${res.status}). Usually this means the deployment's "Who has access" isn't set to "Anyone", or the URL isn't the /exec one from Deploy → New deployment.`);
+  }
+  if(!data.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
 async function sheetFetchAll(){
   const url = new URL(sheetConfig.url);
   url.searchParams.set('secret', sheetConfig.secret);
   const res = await fetch(url.toString());
-  const data = await res.json();
-  if(!data.ok) throw new Error(data.error || 'Request failed');
-  return data;
+  return parseSheetResponse_(res);
 }
 async function sheetSend(action, payload){
   const res = await fetch(sheetConfig.url, {
@@ -2919,9 +3306,7 @@ async function sheetSend(action, payload){
     headers:{ 'Content-Type':'text/plain;charset=utf-8' }, // avoids a CORS preflight Apps Script can't answer
     body: JSON.stringify({ action, secret: sheetConfig.secret, payload })
   });
-  const data = await res.json();
-  if(!data.ok) throw new Error(data.error || 'Request failed');
-  return data;
+  return parseSheetResponse_(res);
 }
 function updateSheetStatusLabel(){
   const btn = document.getElementById('sheetSettingsBtn');
@@ -2935,19 +3320,47 @@ function updateSheetStatusLabel(){
   }
 }
 // Applies a doGet response in place: entries replace the local breeding
-// cache, pals/activeSkills feed palImageDb + the live suggestions array
-// (mutated in place — createTagInput() closures hold a reference to this
-// exact array, so existing form fields pick up new suggestions live).
-function applySheetData(data){
+// cache; pals feed palImageDb, palPartnerSkillDb, and a two-way merge
+// of discovery status; activeSkills feeds the live suggestions array
+// (mutated in place — createTagInput() closures hold a reference to
+// this exact array, so existing form fields pick up new suggestions
+// live); elements feeds elementImageDb (type pill -> picture).
+async function applySheetData(data){
   breedingEntries = (data.entries || []).map(e => Object.assign({ synced:true }, e));
   persistBreedingLocal();
 
   palImageDb = {};
-  (data.pals || []).forEach(p => { if(p.imageUrl) palImageDb[p.id] = p.imageUrl; });
+  palPartnerSkillDb = {};
+  const sheetDiscoveredIds = [];
+  (data.pals || []).forEach(p => {
+    if(p.imageUrl) palImageDb[p.id] = p.imageUrl;
+    if(p.partnerSkillName) palPartnerSkillDb[p.id] = [p.partnerSkillName, p.partnerSkillDesc || ''];
+    if(p.discovered) sheetDiscoveredIds.push(p.id);
+  });
+
+  elementImageDb = {};
+  (data.elements || []).forEach(t => { if(t.imageUrl) elementImageDb[t.code] = t.imageUrl; });
 
   const names = (data.activeSkills || []).map(s => s.name).filter(Boolean);
   activeSkillNames.length = 0;
   names.forEach(n => activeSkillNames.push(n));
+
+  // Discovery is a two-way sync: the sheet's discovered set merges into
+  // local state (union — a sheet read never un-discovers a Pal you've
+  // ticked off here), and anything discovered locally but still missing
+  // from the sheet gets pushed up in one batch call.
+  let localChanged = false;
+  sheetDiscoveredIds.forEach(id => {
+    if(!state.discovered[id]){ state.discovered[id] = true; localChanged = true; }
+  });
+  if(localChanged) persistState();
+
+  const sheetDiscoveredSet = new Set(sheetDiscoveredIds);
+  const toPush = Object.keys(state.discovered).filter(id => state.discovered[id] && !sheetDiscoveredSet.has(id));
+  if(toPush.length){
+    try{ await sheetSend('setDiscoveredBatch', { palIds: toPush }); }
+    catch(e){ /* best effort — next sync will retry */ }
+  }
 
   persistSheetDataCache();
 }
@@ -2955,7 +3368,7 @@ async function syncFromSheet(){
   if(!sheetConfig.url) return;
   try{
     const data = await sheetFetchAll();
-    applySheetData(data);
+    await applySheetData(data);
     renderBreedEntries();
     render();
   }catch(e){
@@ -3379,7 +3792,7 @@ document.getElementById('sheetSettingsSave').addEventListener('click', async () 
   try{
     const data = await sheetFetchAll();
     persistSheetConfig();
-    applySheetData(data);
+    await applySheetData(data);
     renderBreedEntries();
     render();
     updateSheetStatusLabel();
@@ -3391,7 +3804,7 @@ document.getElementById('sheetSettingsSave').addEventListener('click', async () 
     setTimeout(() => { document.getElementById('sheetSettingsModal').style.display = 'none'; }, 1400);
   }catch(err){
     sheetConfig = prevConfig;
-    statusEl.textContent = 'Could not connect — check the URL and SECRET, and that the deployment allows "Anyone" access.';
+    statusEl.textContent = (err && err.message) ? err.message : 'Could not connect — check the URL and SECRET, and that the deployment allows "Anyone" access.';
     statusEl.className = 'sheet-status-line err';
   }
 });
