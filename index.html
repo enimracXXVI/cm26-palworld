@@ -309,6 +309,13 @@
     width:7px;height:7px;border-radius:50%;
     background:var(--dot,var(--text-dim));
   }
+  .type-chip-icon{
+    width:16px;
+    height:16px;
+    border-radius:4px;
+    object-fit:cover;
+    display:block;
+  }
   .type-chip.active{
     color:var(--text);
     border-color:var(--dot,var(--border-strong));
@@ -393,7 +400,6 @@
     font-size:14.5px;
     font-weight:700;
     line-height:1.25;
-    min-height:2.4em;
     color:var(--text);
   }
   .pal-name.masked{
@@ -717,7 +723,7 @@
   /* ---------- pal image ---------- */
   .pal-image-box{
     width:100%;
-    aspect-ratio:1/1;
+    height:96px;
     border-radius:8px;
     overflow:hidden;
     background:var(--bg-alt);
@@ -871,10 +877,17 @@
     font-family:var(--font-mono);
     font-size:10px;
     color:var(--accent);
+    background:none;
     border:1px dashed var(--accent-dim);
     border-radius:20px;
     padding:1.5px 7px;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
   }
+  .breed-unsynced:hover{ background:var(--accent-soft); }
+  .breed-unsynced svg{ width:10px; height:10px; }
   .breed-flow{
     display:flex;
     align-items:center;
@@ -891,14 +904,27 @@
     padding:8px 11px;
     min-width:130px;
   }
+  .breed-pal-chip-top{ display:flex; align-items:center; gap:8px; }
+  .breed-pal-chip-thumb{
+    width:28px;
+    height:28px;
+    border-radius:6px;
+    object-fit:cover;
+    border:1px solid var(--border-strong);
+    background:var(--panel);
+    flex:0 0 auto;
+  }
   .breed-pal-chip .pname{ font-size:13px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:6px; }
   .breed-pal-chip .sex{
-    font-family:var(--font-mono);
-    font-size:9.5px;
-    padding:1px 5px;
-    border-radius:20px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:18px;
+    height:18px;
+    border-radius:50%;
     border:1px solid var(--border-strong);
     color:var(--text-muted);
+    flex:0 0 auto;
   }
   .breed-pal-chip .sex.male{ color:var(--t-WA); border-color:var(--t-WA); }
   .breed-pal-chip .sex.female{ color:var(--t-DR); border-color:var(--t-DR); }
@@ -943,6 +969,10 @@
   .sex-toggle{ display:flex; gap:6px; }
   .sex-toggle button{
     flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
     font-family:var(--font-display);
     font-size:12px;
     font-weight:600;
@@ -955,6 +985,8 @@
   }
   .sex-toggle button.on.male{ color:var(--t-WA); border-color:var(--t-WA); background:rgba(61,143,214,0.12); }
   .sex-toggle button.on.female{ color:var(--t-DR); border-color:var(--t-DR); background:rgba(196,67,107,0.12); }
+  .gender-icon{ width:14px; height:14px; flex:0 0 auto; }
+  .sex.male .gender-icon, .sex.female .gender-icon{ width:12px; height:12px; }
 
   .combo-wrap{ position:relative; }
   .combo-wrap input{
@@ -1289,7 +1321,7 @@
       <li>In the Apps Script editor: <b>Project Settings</b> (gear icon) → <b>Script Properties</b> → add a property named <code>SECRET</code> with any password you choose.</li>
       <li><b>Deploy → New deployment</b> → type <b>Web app</b> → Execute as <b>Me</b>, Who has access <b>Anyone</b> → <b>Deploy</b>, then authorize it.</li>
       <li>Copy the Web app URL it gives you and paste it below, along with the same SECRET.</li>
-      <li>Once connected, three more tabs appear on the sheet: <b>PalsDB</b> (every Pal, pre-filled with Partner Skills — paste a picture URL into <code>ImageUrl</code>; <code>Discovered</code> is written by the app as you tick Pals off), <b>ActiveSkillsDB</b> (empty — paste your own active-skill data, at least a <code>Name</code> column), and <b>ElementsDB</b> (the 9 types — paste a picture per type to replace the colored pills).</li>
+      <li>Once connected, four more tabs appear on the sheet: <b>PalsDB</b> (every Pal, pre-filled with Partner Skills — paste a picture URL into <code>ImageUrl</code>; <code>Discovered</code> is written by the app as you tick Pals off), <b>PassiveSkillsDB</b> (pre-filled with the app's passive skill list — edit or add rows and the app uses your copy), <b>ActiveSkillsDB</b> (empty — paste your own active-skill data, at least a <code>Name</code> column), and <b>ElementsDB</b> (the 9 types — paste a picture per type to replace the colored pills).</li>
     </ol>
     <p class="sheet-redeploy-note">Already connected and pasting in an updated script? Editing the code alone doesn't update your live URL — go to <b>Deploy → Manage deployments</b> → pencil icon → <b>Version: New version</b> → <b>Deploy</b>.</p>
     <button class="wiki-link" id="copyScriptBtn" type="button" style="width:100%; margin-bottom:14px;">
@@ -1963,16 +1995,26 @@ function showToast(msg, isErr){
    RENDER
    ============================================================ */
 function buildTypeChips(){
+  // Rebuildable (not just built once): a Google Sheet sync can populate
+  // elementImageDb after the initial call, and chips need to switch from
+  // dot+label to a picture at that point — re-derive `active` from
+  // filters.types each time so re-running this never loses the current
+  // filter selection.
   const row = document.getElementById('typeRow');
+  row.innerHTML = '';
   const frag = document.createDocumentFragment();
   TYPE_ORDER.forEach(code => {
     const meta = TYPE_META[code];
+    const elImg = elementImageDb[code];
     const chip = document.createElement('button');
-    chip.className = 'type-chip';
+    chip.className = 'type-chip' + (filters.types.has(code) ? ' active' : '');
     chip.type = 'button';
     chip.dataset.type = code;
+    chip.title = meta.label;
     chip.style.setProperty('--dot', `var(${meta.var})`);
-    chip.innerHTML = `<span class="dot"></span>${meta.label}`;
+    chip.innerHTML = elImg
+      ? `<img class="type-chip-icon" src="${escapeHtml(elImg)}" alt="${meta.label}" loading="lazy" onerror="this.outerHTML='<span class=&quot;dot&quot;></span>${meta.label}'">`
+      : `<span class="dot"></span>${meta.label}`;
     chip.addEventListener('click', () => {
       if(filters.types.has(code)) filters.types.delete(code);
       else filters.types.add(code);
@@ -2059,13 +2101,6 @@ function cardTemplate(p){
     partnerHtml = `<div class="partner-block"><div class="partner-label">Partner Skill</div><div class="partner-empty">Discover to reveal</div></div>`;
   }
 
-  const wikiHtml = discovered
-    ? `<a class="wiki-link" href="https://palworld.fandom.com/wiki/${encodeURIComponent(name.replace(/ /g,'_'))}" target="_blank" rel="noopener noreferrer">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="14" rx="2"></rect><path d="M8 21h8M12 17v4"></path><path d="M7 9l3 3-3 3M13 15h4"></path></svg>
-        View picture
-      </a>`
-    : '';
-
   let imageHtml = '';
   if (discovered) {
     const imgUrl = state.images[id] || palImageDb[id];
@@ -2094,7 +2129,6 @@ function cardTemplate(p){
       ${nameHtml}
       <div class="type-row">${typesHtml}</div>
       ${partnerHtml}
-      ${wikiHtml}
       <div class="role-row">
         <button class="role-btn base ${inBase ? 'on' : ''}" data-action="base" ${discovered ? '' : 'disabled'} aria-pressed="${inBase}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v8a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>
@@ -2237,11 +2271,11 @@ function rankBadgeHtml(rank){
 function renderPassives(filterText){
   const list = document.getElementById('passivesList');
   const q = (filterText || '').trim().toLowerCase();
-  const items = PASSIVE_SKILLS.filter(p => !q || p[0].toLowerCase().includes(q));
+  const items = passiveSkillsData.filter(p => !q || p[0].toLowerCase().includes(q));
 
-  const unlockedTotal = PASSIVE_SKILLS.filter(p => state.passivesUnlocked[p[0]]).length;
+  const unlockedTotal = passiveSkillsData.filter(p => state.passivesUnlocked[p[0]]).length;
   document.getElementById('passivesUnlockedCount').textContent =
-    `${unlockedTotal} / ${PASSIVE_SKILLS.length} unlocked`;
+    `${unlockedTotal} / ${passiveSkillsData.length} unlocked`;
 
   if(items.length === 0){
     list.innerHTML = `<div class="passives-empty">No passive skills match "${escapeHtml(filterText)}".</div>`;
@@ -2379,12 +2413,19 @@ document.getElementById('viewTabs').addEventListener('click', (e) => {
    resulting offspring. Cached in localStorage, optionally synced
    to a Google Sheet the person owns via a small Apps Script
    bridge (see apps-script/Code.gs) — never anything hosted by us.
-   The same connection also pulls two reference tabs from that
-   sheet: PalsDB (per-Pal picture URLs, seeded from PALS above so
-   it starts out matching this app) and ActiveSkillsDB (an active
-   skill list the person pastes in themselves — we don't ship one
-   built in, since we couldn't verify one against a real source).
+   The same connection also pulls reference tabs from that sheet:
+   PalsDB (per-Pal picture URLs), ElementsDB (per-type picture
+   URLs), PassiveSkillsDB (seeded from PASSIVE_SKILLS above, then
+   read back from the sheet so the person can amend/expand it) and
+   ActiveSkillsDB (an active skill list the person pastes in
+   themselves — we don't ship one built in, since we couldn't
+   verify one against a real source).
    ============================================================ */
+const GENDER_ICONS = {
+  male: '<svg class="gender-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="14" r="6"></circle><line x1="14.5" y1="9.5" x2="21" y2="3"></line><polyline points="15 3 21 3 21 9"></polyline></svg>',
+  female: '<svg class="gender-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="6"></circle><line x1="12" y1="15" x2="12" y2="21"></line><line x1="9" y1="18" x2="15" y2="18"></line></svg>'
+};
+
 const BREEDING_STORAGE_KEY = 'palpedia-breeding-v1';
 const SHEET_CONFIG_KEY = 'palpedia-sheet-config-v1';
 const SHEET_DATA_CACHE_KEY = 'palpedia-sheet-data-cache-v1';
@@ -2392,6 +2433,13 @@ let palImageDb = {};
 let palPartnerSkillDb = {};
 let elementImageDb = {};
 let activeSkillNames = [];
+// Both start as a working copy of the hardcoded PASSIVE_SKILLS data
+// (mutated in place on sync — see applySheetData), so the app is fully
+// usable before ever connecting a sheet, and everything reading from
+// these two arrays (renderPassives, the breeding form's tag-input
+// suggestions) picks up sheet edits live without rebuilding anything.
+let passiveSkillsData = PASSIVE_SKILLS.map(p => [p[0], p[1], p[2], p[3].slice()]);
+let passiveSkillNames = PASSIVE_SKILLS.map(p => p[0]);
 
 function loadSheetDataCache(){
   try{
@@ -2402,10 +2450,16 @@ function loadSheetDataCache(){
     palPartnerSkillDb = cached.palPartnerSkillDb || {};
     elementImageDb = cached.elementImageDb || {};
     (cached.activeSkillNames || []).forEach(n => activeSkillNames.push(n));
+    if(cached.passiveSkillsData && cached.passiveSkillsData.length){
+      passiveSkillsData.length = 0;
+      cached.passiveSkillsData.forEach(p => passiveSkillsData.push(p));
+      passiveSkillNames.length = 0;
+      passiveSkillsData.forEach(p => passiveSkillNames.push(p[0]));
+    }
   }catch(e){}
 }
 function persistSheetDataCache(){
-  try{ localStorage.setItem(SHEET_DATA_CACHE_KEY, JSON.stringify({ palImageDb, palPartnerSkillDb, elementImageDb, activeSkillNames })); }catch(e){}
+  try{ localStorage.setItem(SHEET_DATA_CACHE_KEY, JSON.stringify({ palImageDb, palPartnerSkillDb, elementImageDb, activeSkillNames, passiveSkillsData })); }catch(e){}
 }
 let breedingEntries = [];
 let sheetConfig = { url:'', secret:'' };
@@ -2935,6 +2989,130 @@ var ACTIVE_SKILLS_HEADERS = ['Name', 'Element', 'Power', 'CT', 'Notes'];
 var ELEMENTS_SHEET_NAME = 'ElementsDB';
 var ELEMENTS_HEADERS = ['TypeCode', 'Name', 'ImageUrl'];
 
+// [name, rank, surgeryApplicable, effects joined with "|"] — mirrors the
+// app's built-in PASSIVE_SKILLS array so the tab starts out matching.
+var PASSIVE_SKILLS_SEED = [
+  ["Demon's Hand",5,true,"Work Speed +90%|SAN drains 15% faster|World Tree resources stay put when approached"],
+  ["Dimensional Leap",5,true,"Move Speed +50%|Hunger drains 15% faster|World Tree resources stay put when approached"],
+  ["God of Destruction",5,true,"Attack +40%|Defense +20%|Max HP -50%|World Tree resources stay put when approached"],
+  ["Hermit Sage",5,true,"SAN drains 50% slower|Work Speed -20%|World Tree resources stay put when approached"],
+  ["Sanctified Meat Shield",5,true,"Defense +50%|Attack -30%|World Tree resources stay put when approached"],
+  ["Twin-Edged Holy Blade",5,true,"Attack +50%|Defense -30%|World Tree resources stay put when approached"],
+  ["World Tree Seedbed",5,true,"Hunger drains 50% slower|HP -20%|World Tree resources stay put when approached"],
+  ["Babysitter",4,true,"At base: +30% egg production and +30% incubation speed for Breeding Farm Pals"],
+  ["Demon God",4,true,"Attack +30%|Defense +5%"],
+  ["Diamond Body",4,true,"Defense +30%|Immune to Flinch|Immune to Knockback"],
+  ["Eternal Engine",4,true,"Max Stamina +75% (rideable Pals only)"],
+  ["Eternal Flame",4,false,"+30% Fire damage|+30% Electric damage"],
+  ["Heart of the Immovable King",4,true,"SAN drains 20% slower"],
+  ["Heavily Armored",4,true,"Immune to Explosion damage"],
+  ["Idiosyncratic",4,true,"Auto HP regen +50%|Defense +25%|Immune to Poison|Immune to Burn"],
+  ["Immortality",4,true,"Lifesteal +5%|Auto HP regen +100%|Attack +15%"],
+  ["Invader",4,false,"+30% Dark damage|+30% Dragon damage"],
+  ["King of the Waves",4,true,"+50% Move Speed on water"],
+  ["Lavish Hospitality",4,false,"+100% items dropped"],
+  ["Legend",4,false,"Attack +20%|Defense +20%|Move Speed +20%"],
+  ["Lightfooted",4,false,"+1 mounted jump count"],
+  ["Lucky",4,false,"Attack +15%|Defense +15%|Work Speed +20%"],
+  ["Lunker",4,false,"+20% Water damage|+20% Ice damage|+20% Defense"],
+  ["Mastery of Fasting",4,true,"Hunger drains 20% slower"],
+  ["Ranch Master",4,false,"Farming suitability +2"],
+  ["Remarkable Craftsmanship",4,true,"Work Speed +75%"],
+  ["Savior",4,false,"+30% Neutral damage|+30% Grass damage"],
+  ["Siren of the Void",4,false,"+30% Dark damage|+30% Ice damage"],
+  ["Skymarcher",4,true,"+2 mounted jump count"],
+  ["Swift",4,true,"+30% Move Speed"],
+  ["Vampiric",4,true,"Absorbs a share of damage dealt as healing; never sleeps, keeps working at night"],
+  ["Ace Swimmer",3,true,"+40% Move Speed on water"],
+  ["Artisan",3,true,"Work Speed +50%"],
+  ["Burly Body",3,true,"Defense +20%|Immune to Flinch"],
+  ["Celestial Emperor",3,false,"+30% Neutral damage"],
+  ["Diet Lover",3,true,"Hunger drains 15% slower"],
+  ["Divine Dragon",3,false,"+30% Dragon damage"],
+  ["Earth Emperor",3,false,"+30% Ground damage"],
+  ["Farmhand",3,false,"Farming suitability +1"],
+  ["Ferocious",3,true,"Attack +20%"],
+  ["Flame Emperor",3,false,"+30% Fire damage"],
+  ["Healing Coach",3,true,"Player auto HP regen +5%"],
+  ["Ice Emperor",3,false,"+30% Ice damage"],
+  ["Infinite Stamina",3,true,"Max Stamina +50% (rideable Pals only)"],
+  ["Logging Foreman",3,true,"+25% player logging efficiency"],
+  ["Lord of Lightning",3,false,"+30% Electric damage"],
+  ["Lord of the Sea",3,false,"+30% Water damage"],
+  ["Lord of the Underworld",3,false,"+30% Dark damage"],
+  ["Mine Foreman",3,true,"+25% player mining efficiency"],
+  ["Motivational Leader",3,true,"+25% player Work Speed"],
+  ["Noble",3,true,"+5% sale value of items"],
+  ["Philanthropist",3,true,"+100% breeding speed on a Breeding Farm"],
+  ["Reload Master",3,true,"+4% player reload speed"],
+  ["Runner",3,true,"+20% Move Speed"],
+  ["Serenity",3,true,"Active skill cooldown -30%|Attack +10%"],
+  ["Service-Minded",3,false,"+50% items dropped"],
+  ["Spirit Emperor",3,false,"+30% Grass damage"],
+  ["Stronghold Strategist",3,true,"+10% player Defense"],
+  ["Vanguard",3,true,"+10% player Attack"],
+  ["Wellness Watcher",3,true,"Player Stamina use -5%"],
+  ["Whopper",3,false,"+5% Water damage|+5% Ice damage|+5% Defense"],
+  ["Workaholic",3,true,"SAN drains 15% slower"],
+  ["Heavyweight",2,false,"Defense +20%|Immune to Knockback"],
+  ["Musclehead",2,true,"Attack +30%|Work Speed -50%"],
+  ["Abnormal",1,false,"-10% Neutral damage taken"],
+  ["Aggressive",1,false,"Attack +10%|Defense -10%"],
+  ["Blood of the Dragon",1,false,"+10% Dragon damage"],
+  ["Botanical Barrier",1,false,"-10% Grass damage taken"],
+  ["Brave",1,true,"Attack +10%"],
+  ["Capacitor",1,false,"+10% Electric damage"],
+  ["Cheery",1,false,"-10% Dark damage taken"],
+  ["Coldblooded",1,false,"+10% Ice damage"],
+  ["Conceited",1,false,"Work Speed +10%|Defense -10%"],
+  ["Dainty Eater",1,true,"Hunger drains 10% slower"],
+  ["Dragonkiller",1,false,"-10% Dragon damage taken"],
+  ["Earthquake Resistant",1,false,"-10% Ground damage taken"],
+  ["Fine Furs",1,true,"+3% sale value of items"],
+  ["Fit as a Fiddle",1,true,"Max Stamina +25% (rideable Pals only)"],
+  ["Fragrant Foliage",1,false,"+10% Grass damage"],
+  ["Hard Skin",1,true,"Defense +10%"],
+  ["Heated Body",1,false,"-10% Ice damage taken"],
+  ["Hooligan",1,false,"Attack +15%|Work Speed -10%"],
+  ["Hydromaniac",1,false,"+10% Water damage"],
+  ["Impatient",1,true,"Active skill cooldown -15%"],
+  ["Insomnia",1,true,"Never sleeps, keeps working at night"],
+  ["Insulated Body",1,false,"-10% Electric damage taken"],
+  ["Masochist",1,false,"Defense +15%|Attack -15%"],
+  ["Nimble",1,true,"+10% Move Speed"],
+  ["Otherworldly Cells",1,false,"Attack +10%|-15% Fire damage taken|-15% Electric damage taken"],
+  ["Positive Thinker",1,true,"SAN drains 10% slower"],
+  ["Power of Gaia",1,false,"+10% Ground damage"],
+  ["Pyromaniac",1,false,"+10% Fire damage"],
+  ["Sadist",1,false,"Attack +15%|Defense -15%"],
+  ["Serious",1,true,"Work Speed +20%"],
+  ["Sleek Stroke",1,true,"+30% Move Speed on water"],
+  ["Spirit of Zen",1,false,"+10% Neutral damage"],
+  ["Suntan Lover",1,false,"-10% Fire damage taken"],
+  ["Veil of Darkness",1,false,"+10% Dark damage"],
+  ["Waterproof",1,false,"-10% Water damage taken"],
+  ["Work Slave",1,true,"Work Speed +30%|Attack -30%"],
+  ["Clumsy",-1,false,"Work Speed -10%"],
+  ["Coward",-1,false,"Attack -10%"],
+  ["Downtrodden",-1,false,"Defense -10%"],
+  ["Easygoing",-1,false,"Active skill cooldown +15% (longer)"],
+  ["Glutton",-1,false,"Hunger drains 10% faster"],
+  ["Mercy Hit",-1,true,"Pacifist — attacks never finish off a target"],
+  ["Night Owl",-1,false,"Naps through the day despite being nocturnal"],
+  ["Shabby",-1,false,"-10% sale value of items"],
+  ["Sickly",-1,false,"Max Stamina -25% (rideable Pals only)"],
+  ["Unstable",-1,false,"SAN drains 10% faster"],
+  ["Bottomless Stomach",-2,false,"Hunger drains 15% faster"],
+  ["Destructive",-2,false,"SAN drains 15% faster"],
+  ["Brittle",-3,false,"Defense -20%"],
+  ["Pacifist",-3,false,"Attack -20%"],
+  ["Slacker",-3,false,"Work Speed -30%"]
+];
+
+
+var PASSIVE_SKILLS_SHEET_NAME = 'PassiveSkillsDB';
+var PASSIVE_SKILLS_HEADERS = ['Name', 'Rank', 'Surgery', 'Effects'];
+
 var PALS_SHEET_NAME = 'PalsDB';
 // Full header set the app understands. New sheets get all of these;
 // existing sheets get missing ones appended (never removed/reordered),
@@ -3287,6 +3465,40 @@ function readElements_() {
   return out;
 }
 
+/* ---------- PassiveSkillsDB (seeded once with the app's built-in list) ---------- */
+function getPassiveSkillsSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(PASSIVE_SKILLS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(PASSIVE_SKILLS_SHEET_NAME);
+    sheet.appendRow(PASSIVE_SKILLS_HEADERS);
+    var rows = PASSIVE_SKILLS_SEED.map(function (p) { return [p[0], p[1], p[2] ? 'Yes' : '', p[3]]; });
+    sheet.getRange(2, 1, rows.length, PASSIVE_SKILLS_HEADERS.length).setValues(rows);
+  }
+  return sheet;
+}
+
+function readPassiveSkills_() {
+  var sheet = getPassiveSkillsSheet_();
+  var values = sheet.getDataRange().getValues();
+  if (values.length < 2) return [];
+  var header = values[0];
+  var cName = headerIndex_(header, 'Name'), cRank = headerIndex_(header, 'Rank'),
+    cSurg = headerIndex_(header, 'Surgery'), cEff = headerIndex_(header, 'Effects');
+  var out = [];
+  for (var i = 1; i < values.length; i++) {
+    var row = values[i];
+    if (cName === -1 || !row[cName]) continue;
+    out.push({
+      name: String(row[cName]),
+      rank: cRank !== -1 ? Number(row[cRank]) || 0 : 0,
+      surgery: cSurg !== -1 ? isTruthyCell_(row[cSurg]) : false,
+      effects: cEff !== -1 && row[cEff] ? String(row[cEff]).split('|') : []
+    });
+  }
+  return out;
+}
+
 function doGet(e) {
   if (!checkSecret_(e.parameter.secret)) {
     return jsonOut_({ ok: false, error: 'Unauthorized — the SECRET sent by the app does not match this deployment\'s Script Property.' });
@@ -3300,7 +3512,8 @@ function doGet(e) {
     entries: entries,
     pals: readPals_(),
     activeSkills: readActiveSkills_(),
-    elements: readElements_()
+    elements: readElements_(),
+    passiveSkills: readPassiveSkills_()
   });
 }
 
@@ -3423,7 +3636,14 @@ function updateSheetStatusLabel(){
 // this exact array, so existing form fields pick up new suggestions
 // live); elements feeds elementImageDb (type pill -> picture).
 async function applySheetData(data){
-  breedingEntries = (data.entries || []).map(e => Object.assign({ synced:true }, e));
+  const serverEntries = (data.entries || []).map(e => Object.assign({ synced:true }, e));
+  const serverIds = new Set(serverEntries.map(e => e.id));
+  // A sync must never silently drop something the user is still trying
+  // to save: keep any local entry that hasn't confirmed as synced yet
+  // and isn't already on the server (a failed push, or one made while
+  // briefly offline) — it gets pushed below instead of discarded.
+  const pendingLocal = breedingEntries.filter(e => e.synced === false && !serverIds.has(e.id));
+  breedingEntries = serverEntries.concat(pendingLocal);
   persistBreedingLocal();
 
   palImageDb = {};
@@ -3441,6 +3661,19 @@ async function applySheetData(data){
   const names = (data.activeSkills || []).map(s => s.name).filter(Boolean);
   activeSkillNames.length = 0;
   names.forEach(n => activeSkillNames.push(n));
+
+  // PassiveSkillsDB is seeded from PASSIVE_SKILLS, so a connected sheet
+  // should always have rows — only replace the working copy when it does,
+  // so a not-yet-synced or briefly empty response can't blank the list.
+  const sheetPassives = (data.passiveSkills || [])
+    .filter(p => p.name)
+    .map(p => [p.name, p.rank, p.surgery, p.effects || []]);
+  if(sheetPassives.length){
+    passiveSkillsData.length = 0;
+    sheetPassives.forEach(p => passiveSkillsData.push(p));
+    passiveSkillNames.length = 0;
+    passiveSkillsData.forEach(p => passiveSkillNames.push(p[0]));
+  }
 
   // Discovery is a two-way sync: the sheet's discovered set merges into
   // local state (union — a sheet read never un-discovers a Pal you've
@@ -3466,8 +3699,10 @@ async function syncFromSheet(){
   try{
     const data = await sheetFetchAll();
     await applySheetData(data);
+    buildTypeChips();
     renderBreedEntries();
     render();
+    await pushUnsyncedBreedingEntries();
   }catch(e){
     document.getElementById('sheetSettingsBtn').classList.add('sync-error');
     showToast('Could not reach your Google Sheet — showing your last saved copy.', true);
@@ -3496,11 +3731,18 @@ function createPalCombo(){
     input.value = p ? p[3] : '';
   }
   function renderDropdown(query){
+    // Only Pals already ticked off in the Palpedia are selectable here —
+    // a breeding log entry is about Pals you actually have.
     const q = query.trim().toLowerCase();
-    const matches = (!q ? PALS : PALS.filter(p => p[3].toLowerCase().includes(q))).slice(0, 30);
-    dropdown.innerHTML = matches.length === 0
-      ? `<div class="combo-empty">No Pals match "${escapeHtml(query)}"</div>`
-      : matches.map(p => `<div class="combo-option" data-id="${p[0]}">№${String(p[1]).padStart(3,'0')}${p[2]} ${escapeHtml(p[3])}</div>`).join('');
+    const pool = PALS.filter(p => state.discovered[p[0]]);
+    const matches = (!q ? pool : pool.filter(p => p[3].toLowerCase().includes(q))).slice(0, 30);
+    if(matches.length === 0){
+      dropdown.innerHTML = pool.length === 0
+        ? `<div class="combo-empty">Discover some Pals on the Palpedia tab first.</div>`
+        : `<div class="combo-empty">No discovered Pals match "${escapeHtml(query)}"</div>`;
+    } else {
+      dropdown.innerHTML = matches.map(p => `<div class="combo-option" data-id="${p[0]}">№${String(p[1]).padStart(3,'0')}${p[2]} ${escapeHtml(p[3])}</div>`).join('');
+    }
     dropdown.style.display = 'block';
   }
   input.addEventListener('focus', () => renderDropdown(input.value));
@@ -3646,9 +3888,11 @@ function createBreedBlock(title, isOffspring){
   const sexToggle = document.createElement('div');
   sexToggle.className = 'sex-toggle';
   const maleBtn = document.createElement('button');
-  maleBtn.type = 'button'; maleBtn.className = 'male'; maleBtn.textContent = 'Male';
+  maleBtn.type = 'button'; maleBtn.className = 'male';
+  maleBtn.innerHTML = `${GENDER_ICONS.male}<span>Male</span>`;
   const femaleBtn = document.createElement('button');
-  femaleBtn.type = 'button'; femaleBtn.className = 'female'; femaleBtn.textContent = 'Female';
+  femaleBtn.type = 'button'; femaleBtn.className = 'female';
+  femaleBtn.innerHTML = `${GENDER_ICONS.female}<span>Female</span>`;
   let sexVal = '';
   function setSex(v){
     sexVal = v;
@@ -3667,7 +3911,7 @@ function createBreedBlock(title, isOffspring){
   row2.className = 'breed-block-row';
   const passCell = document.createElement('div');
   passCell.innerHTML = '<label class="breed-field-label">Passive skills (up to 4)</label>';
-  const passiveInput = createTagInput({ maxCount:4, suggestions: PASSIVE_SKILLS.map(p => p[0]), placeholder:'Search passives…' });
+  const passiveInput = createTagInput({ maxCount:4, suggestions: passiveSkillNames, placeholder:'Search passives…' });
   passCell.appendChild(passiveInput.el);
   row2.appendChild(passCell);
   block.appendChild(row2);
@@ -3719,13 +3963,24 @@ function formatEntryDate(iso){
   try{ return new Date(iso).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }); }
   catch(e){ return ''; }
 }
+function palImageById(id){
+  return (state.images[id] || palImageDb[id] || '');
+}
 function breedPalChipHtml(data, isOffspring){
   const name = palNameById(data.palId);
   const sexCls = data.sex === 'Male' ? 'male' : data.sex === 'Female' ? 'female' : '';
+  const genderIcon = sexCls ? GENDER_ICONS[sexCls] : '';
   const passives = data.passives && data.passives.length ? data.passives.join(', ') : '—';
   const actives = data.actives && data.actives.length ? data.actives.join(', ') : '—';
+  const img = palImageById(data.palId);
+  const thumbHtml = img
+    ? `<img class="breed-pal-chip-thumb" src="${escapeHtml(img)}" alt="" loading="lazy" onerror="this.style.display='none'">`
+    : `<span class="breed-pal-chip-thumb"></span>`;
   return `<div class="breed-pal-chip${isOffspring ? ' offspring' : ''}">
-    <div class="pname">${escapeHtml(name)}${data.sex ? ` <span class="sex ${sexCls}">${data.sex}</span>` : ''}</div>
+    <div class="breed-pal-chip-top">
+      ${thumbHtml}
+      <div class="pname">${escapeHtml(name)}${data.sex ? ` <span class="sex ${sexCls}" title="${data.sex}">${genderIcon}</span>` : ''}</div>
+    </div>
     <div class="skills"><b>Passives:</b> ${escapeHtml(passives)}</div>
     <div class="skills"><b>Actives:</b> ${escapeHtml(actives)}</div>
   </div>`;
@@ -3751,7 +4006,7 @@ function renderBreedEntries(){
       <div class="breed-entry-top">
         <span class="breed-entry-date">${formatEntryDate(e.createdAt)}</span>
         <div class="breed-entry-actions">
-          ${e.synced === false && sheetConfig.url ? '<span class="breed-unsynced">Not synced</span>' : ''}
+          ${e.synced === false && sheetConfig.url ? `<button class="breed-unsynced" data-action="retry-sync" title="Tap to retry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>Not synced</button>` : ''}
           <button class="breed-icon-btn" data-action="edit-breed" title="Edit">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
           </button>
@@ -3829,17 +4084,38 @@ document.getElementById('breedFormSave').addEventListener('click', async () => {
   renderBreedEntries();
   closeBreedForm();
 
-  if(sheetConfig.url){
-    try{
-      await sheetSend(wasEditing ? 'update' : 'add', entry);
-      entry.synced = true;
-      persistBreedingLocal();
-      renderBreedEntries();
-    }catch(err){
-      showToast('Saved locally, but could not sync to your Google Sheet.', true);
+  await pushBreedingEntry(entry, true);
+});
+
+// Always an upsert (Code.gs's 'update' action appends the row if it
+// doesn't find an existing id), so this is safe to call for a brand
+// new entry, an edit, or a retry — no need to remember which one it was.
+async function pushBreedingEntry(entry, announceFailure){
+  if(!sheetConfig.url) return;
+  try{
+    await sheetSend('update', entry);
+    entry.synced = true;
+    persistBreedingLocal();
+    renderBreedEntries();
+  }catch(err){
+    entry.synced = false;
+    persistBreedingLocal();
+    renderBreedEntries();
+    if(announceFailure){
+      showToast(`Saved locally, but could not sync to your Google Sheet: ${err.message}`, true);
     }
   }
-});
+}
+
+// Anything still marked unsynced (a failed push, or an entry created
+// while offline) gets one retry attempt each time a sheet sync succeeds.
+async function pushUnsyncedBreedingEntries(){
+  if(!sheetConfig.url) return;
+  const pending = breedingEntries.filter(e => e.synced === false);
+  for(const entry of pending){
+    await pushBreedingEntry(entry, false);
+  }
+}
 
 document.getElementById('breedEntries').addEventListener('click', async (e) => {
   const card = e.target.closest('.breed-entry');
@@ -3850,13 +4126,18 @@ document.getElementById('breedEntries').addEventListener('click', async (e) => {
     if(entry) openBreedForm(entry);
     return;
   }
+  if(e.target.closest('[data-action="retry-sync"]')){
+    const entry = breedingEntries.find(x => x.id === id);
+    if(entry) await pushBreedingEntry(entry, true);
+    return;
+  }
   if(e.target.closest('[data-action="delete-breed"]')){
     breedingEntries = breedingEntries.filter(x => x.id !== id);
     persistBreedingLocal();
     renderBreedEntries();
     if(sheetConfig.url){
       try{ await sheetSend('delete', { id }); }
-      catch(err){ showToast('Deleted locally, but could not remove it from your Google Sheet.', true); }
+      catch(err){ showToast(`Deleted locally, but could not remove it from your Google Sheet: ${err.message}`, true); }
     }
   }
 });
@@ -3897,12 +4178,15 @@ document.getElementById('sheetSettingsSave').addEventListener('click', async () 
     const data = await sheetFetchAll();
     persistSheetConfig();
     await applySheetData(data);
+    buildTypeChips();
     renderBreedEntries();
     render();
+    await pushUnsyncedBreedingEntries();
     updateSheetStatusLabel();
     const n = (data.entries || []).length;
     const skillCount = (data.activeSkills || []).length;
-    statusEl.textContent = `Connected — loaded ${n} breeding ${n === 1 ? 'entry' : 'entries'}, ${(data.pals || []).length} Pals, ${skillCount} active skill${skillCount === 1 ? '' : 's'}.`;
+    const passiveCount = (data.passiveSkills || []).length;
+    statusEl.textContent = `Connected — loaded ${n} breeding ${n === 1 ? 'entry' : 'entries'}, ${(data.pals || []).length} Pals, ${passiveCount} passive skill${passiveCount === 1 ? '' : 's'}, ${skillCount} active skill${skillCount === 1 ? '' : 's'}.`;
     statusEl.className = 'sheet-status-line ok';
     showToast('Google Sheet connected.');
     setTimeout(() => { document.getElementById('sheetSettingsModal').style.display = 'none'; }, 1400);

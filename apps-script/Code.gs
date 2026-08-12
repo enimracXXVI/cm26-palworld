@@ -520,6 +520,130 @@ var ACTIVE_SKILLS_HEADERS = ['Name', 'Element', 'Power', 'CT', 'Notes'];
 var ELEMENTS_SHEET_NAME = 'ElementsDB';
 var ELEMENTS_HEADERS = ['TypeCode', 'Name', 'ImageUrl'];
 
+// [name, rank, surgeryApplicable, effects joined with "|"] — mirrors the
+// app's built-in PASSIVE_SKILLS array so the tab starts out matching.
+var PASSIVE_SKILLS_SEED = [
+  ["Demon's Hand",5,true,"Work Speed +90%|SAN drains 15% faster|World Tree resources stay put when approached"],
+  ["Dimensional Leap",5,true,"Move Speed +50%|Hunger drains 15% faster|World Tree resources stay put when approached"],
+  ["God of Destruction",5,true,"Attack +40%|Defense +20%|Max HP -50%|World Tree resources stay put when approached"],
+  ["Hermit Sage",5,true,"SAN drains 50% slower|Work Speed -20%|World Tree resources stay put when approached"],
+  ["Sanctified Meat Shield",5,true,"Defense +50%|Attack -30%|World Tree resources stay put when approached"],
+  ["Twin-Edged Holy Blade",5,true,"Attack +50%|Defense -30%|World Tree resources stay put when approached"],
+  ["World Tree Seedbed",5,true,"Hunger drains 50% slower|HP -20%|World Tree resources stay put when approached"],
+  ["Babysitter",4,true,"At base: +30% egg production and +30% incubation speed for Breeding Farm Pals"],
+  ["Demon God",4,true,"Attack +30%|Defense +5%"],
+  ["Diamond Body",4,true,"Defense +30%|Immune to Flinch|Immune to Knockback"],
+  ["Eternal Engine",4,true,"Max Stamina +75% (rideable Pals only)"],
+  ["Eternal Flame",4,false,"+30% Fire damage|+30% Electric damage"],
+  ["Heart of the Immovable King",4,true,"SAN drains 20% slower"],
+  ["Heavily Armored",4,true,"Immune to Explosion damage"],
+  ["Idiosyncratic",4,true,"Auto HP regen +50%|Defense +25%|Immune to Poison|Immune to Burn"],
+  ["Immortality",4,true,"Lifesteal +5%|Auto HP regen +100%|Attack +15%"],
+  ["Invader",4,false,"+30% Dark damage|+30% Dragon damage"],
+  ["King of the Waves",4,true,"+50% Move Speed on water"],
+  ["Lavish Hospitality",4,false,"+100% items dropped"],
+  ["Legend",4,false,"Attack +20%|Defense +20%|Move Speed +20%"],
+  ["Lightfooted",4,false,"+1 mounted jump count"],
+  ["Lucky",4,false,"Attack +15%|Defense +15%|Work Speed +20%"],
+  ["Lunker",4,false,"+20% Water damage|+20% Ice damage|+20% Defense"],
+  ["Mastery of Fasting",4,true,"Hunger drains 20% slower"],
+  ["Ranch Master",4,false,"Farming suitability +2"],
+  ["Remarkable Craftsmanship",4,true,"Work Speed +75%"],
+  ["Savior",4,false,"+30% Neutral damage|+30% Grass damage"],
+  ["Siren of the Void",4,false,"+30% Dark damage|+30% Ice damage"],
+  ["Skymarcher",4,true,"+2 mounted jump count"],
+  ["Swift",4,true,"+30% Move Speed"],
+  ["Vampiric",4,true,"Absorbs a share of damage dealt as healing; never sleeps, keeps working at night"],
+  ["Ace Swimmer",3,true,"+40% Move Speed on water"],
+  ["Artisan",3,true,"Work Speed +50%"],
+  ["Burly Body",3,true,"Defense +20%|Immune to Flinch"],
+  ["Celestial Emperor",3,false,"+30% Neutral damage"],
+  ["Diet Lover",3,true,"Hunger drains 15% slower"],
+  ["Divine Dragon",3,false,"+30% Dragon damage"],
+  ["Earth Emperor",3,false,"+30% Ground damage"],
+  ["Farmhand",3,false,"Farming suitability +1"],
+  ["Ferocious",3,true,"Attack +20%"],
+  ["Flame Emperor",3,false,"+30% Fire damage"],
+  ["Healing Coach",3,true,"Player auto HP regen +5%"],
+  ["Ice Emperor",3,false,"+30% Ice damage"],
+  ["Infinite Stamina",3,true,"Max Stamina +50% (rideable Pals only)"],
+  ["Logging Foreman",3,true,"+25% player logging efficiency"],
+  ["Lord of Lightning",3,false,"+30% Electric damage"],
+  ["Lord of the Sea",3,false,"+30% Water damage"],
+  ["Lord of the Underworld",3,false,"+30% Dark damage"],
+  ["Mine Foreman",3,true,"+25% player mining efficiency"],
+  ["Motivational Leader",3,true,"+25% player Work Speed"],
+  ["Noble",3,true,"+5% sale value of items"],
+  ["Philanthropist",3,true,"+100% breeding speed on a Breeding Farm"],
+  ["Reload Master",3,true,"+4% player reload speed"],
+  ["Runner",3,true,"+20% Move Speed"],
+  ["Serenity",3,true,"Active skill cooldown -30%|Attack +10%"],
+  ["Service-Minded",3,false,"+50% items dropped"],
+  ["Spirit Emperor",3,false,"+30% Grass damage"],
+  ["Stronghold Strategist",3,true,"+10% player Defense"],
+  ["Vanguard",3,true,"+10% player Attack"],
+  ["Wellness Watcher",3,true,"Player Stamina use -5%"],
+  ["Whopper",3,false,"+5% Water damage|+5% Ice damage|+5% Defense"],
+  ["Workaholic",3,true,"SAN drains 15% slower"],
+  ["Heavyweight",2,false,"Defense +20%|Immune to Knockback"],
+  ["Musclehead",2,true,"Attack +30%|Work Speed -50%"],
+  ["Abnormal",1,false,"-10% Neutral damage taken"],
+  ["Aggressive",1,false,"Attack +10%|Defense -10%"],
+  ["Blood of the Dragon",1,false,"+10% Dragon damage"],
+  ["Botanical Barrier",1,false,"-10% Grass damage taken"],
+  ["Brave",1,true,"Attack +10%"],
+  ["Capacitor",1,false,"+10% Electric damage"],
+  ["Cheery",1,false,"-10% Dark damage taken"],
+  ["Coldblooded",1,false,"+10% Ice damage"],
+  ["Conceited",1,false,"Work Speed +10%|Defense -10%"],
+  ["Dainty Eater",1,true,"Hunger drains 10% slower"],
+  ["Dragonkiller",1,false,"-10% Dragon damage taken"],
+  ["Earthquake Resistant",1,false,"-10% Ground damage taken"],
+  ["Fine Furs",1,true,"+3% sale value of items"],
+  ["Fit as a Fiddle",1,true,"Max Stamina +25% (rideable Pals only)"],
+  ["Fragrant Foliage",1,false,"+10% Grass damage"],
+  ["Hard Skin",1,true,"Defense +10%"],
+  ["Heated Body",1,false,"-10% Ice damage taken"],
+  ["Hooligan",1,false,"Attack +15%|Work Speed -10%"],
+  ["Hydromaniac",1,false,"+10% Water damage"],
+  ["Impatient",1,true,"Active skill cooldown -15%"],
+  ["Insomnia",1,true,"Never sleeps, keeps working at night"],
+  ["Insulated Body",1,false,"-10% Electric damage taken"],
+  ["Masochist",1,false,"Defense +15%|Attack -15%"],
+  ["Nimble",1,true,"+10% Move Speed"],
+  ["Otherworldly Cells",1,false,"Attack +10%|-15% Fire damage taken|-15% Electric damage taken"],
+  ["Positive Thinker",1,true,"SAN drains 10% slower"],
+  ["Power of Gaia",1,false,"+10% Ground damage"],
+  ["Pyromaniac",1,false,"+10% Fire damage"],
+  ["Sadist",1,false,"Attack +15%|Defense -15%"],
+  ["Serious",1,true,"Work Speed +20%"],
+  ["Sleek Stroke",1,true,"+30% Move Speed on water"],
+  ["Spirit of Zen",1,false,"+10% Neutral damage"],
+  ["Suntan Lover",1,false,"-10% Fire damage taken"],
+  ["Veil of Darkness",1,false,"+10% Dark damage"],
+  ["Waterproof",1,false,"-10% Water damage taken"],
+  ["Work Slave",1,true,"Work Speed +30%|Attack -30%"],
+  ["Clumsy",-1,false,"Work Speed -10%"],
+  ["Coward",-1,false,"Attack -10%"],
+  ["Downtrodden",-1,false,"Defense -10%"],
+  ["Easygoing",-1,false,"Active skill cooldown +15% (longer)"],
+  ["Glutton",-1,false,"Hunger drains 10% faster"],
+  ["Mercy Hit",-1,true,"Pacifist — attacks never finish off a target"],
+  ["Night Owl",-1,false,"Naps through the day despite being nocturnal"],
+  ["Shabby",-1,false,"-10% sale value of items"],
+  ["Sickly",-1,false,"Max Stamina -25% (rideable Pals only)"],
+  ["Unstable",-1,false,"SAN drains 10% faster"],
+  ["Bottomless Stomach",-2,false,"Hunger drains 15% faster"],
+  ["Destructive",-2,false,"SAN drains 15% faster"],
+  ["Brittle",-3,false,"Defense -20%"],
+  ["Pacifist",-3,false,"Attack -20%"],
+  ["Slacker",-3,false,"Work Speed -30%"]
+];
+
+
+var PASSIVE_SKILLS_SHEET_NAME = 'PassiveSkillsDB';
+var PASSIVE_SKILLS_HEADERS = ['Name', 'Rank', 'Surgery', 'Effects'];
+
 var PALS_SHEET_NAME = 'PalsDB';
 // Full header set the app understands. New sheets get all of these;
 // existing sheets get missing ones appended (never removed/reordered),
@@ -872,6 +996,40 @@ function readElements_() {
   return out;
 }
 
+/* ---------- PassiveSkillsDB (seeded once with the app's built-in list) ---------- */
+function getPassiveSkillsSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(PASSIVE_SKILLS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(PASSIVE_SKILLS_SHEET_NAME);
+    sheet.appendRow(PASSIVE_SKILLS_HEADERS);
+    var rows = PASSIVE_SKILLS_SEED.map(function (p) { return [p[0], p[1], p[2] ? 'Yes' : '', p[3]]; });
+    sheet.getRange(2, 1, rows.length, PASSIVE_SKILLS_HEADERS.length).setValues(rows);
+  }
+  return sheet;
+}
+
+function readPassiveSkills_() {
+  var sheet = getPassiveSkillsSheet_();
+  var values = sheet.getDataRange().getValues();
+  if (values.length < 2) return [];
+  var header = values[0];
+  var cName = headerIndex_(header, 'Name'), cRank = headerIndex_(header, 'Rank'),
+    cSurg = headerIndex_(header, 'Surgery'), cEff = headerIndex_(header, 'Effects');
+  var out = [];
+  for (var i = 1; i < values.length; i++) {
+    var row = values[i];
+    if (cName === -1 || !row[cName]) continue;
+    out.push({
+      name: String(row[cName]),
+      rank: cRank !== -1 ? Number(row[cRank]) || 0 : 0,
+      surgery: cSurg !== -1 ? isTruthyCell_(row[cSurg]) : false,
+      effects: cEff !== -1 && row[cEff] ? String(row[cEff]).split('|') : []
+    });
+  }
+  return out;
+}
+
 function doGet(e) {
   if (!checkSecret_(e.parameter.secret)) {
     return jsonOut_({ ok: false, error: 'Unauthorized — the SECRET sent by the app does not match this deployment\'s Script Property.' });
@@ -885,7 +1043,8 @@ function doGet(e) {
     entries: entries,
     pals: readPals_(),
     activeSkills: readActiveSkills_(),
-    elements: readElements_()
+    elements: readElements_(),
+    passiveSkills: readPassiveSkills_()
   });
 }
 

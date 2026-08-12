@@ -14,7 +14,7 @@ a new one.
 ## Setup
 
 1. Open the **Palpedia Field Tracker Data** spreadsheet (or use your
-   own, any name — the four tabs below are created automatically the
+   own, any name — the five tabs below are created automatically the
    first time the app talks to it).
 2. Open **Extensions → Apps Script**, delete the placeholder `Code.gs`
    content, and paste in [`Code.gs`](./Code.gs) from this folder.
@@ -43,9 +43,9 @@ sheet's tabs look right — the tabs were created by whichever version
 of the script *did* run at some point, which can be older than what
 you're now looking at in the editor.
 
-## The four tabs
+## The five tabs
 
-Nothing needs to be created by hand — the script makes all four the
+Nothing needs to be created by hand — the script makes all five the
 first time it runs, and additively migrates a tab that already exists
 (only ever appending a missing column, never touching what's there):
 
@@ -83,6 +83,16 @@ first time it runs, and additively migrates a tab that already exists
   (`TypeCode`, `Name`, blank `ImageUrl`). Paste a picture URL per type
   and the app shows that image instead of a colored pill wherever a
   Pal's types are listed.
+- **PassiveSkillsDB** — seeded *once* with the app's built-in 115-entry
+  passive skill list (`Name`, `Rank`, `Surgery`, `Effects` — effects
+  pipe-separated in one cell). Unlike ActiveSkillsDB this one starts
+  full, not empty: the app already has good data for it, so you're
+  editing/correcting/extending a working copy rather than starting
+  from scratch. The app reads its whole passive skills list — the
+  Passive Skills reference modal, and the Breeding Log's passive-skill
+  suggestions — from this tab once connected, instead of its own
+  hardcoded copy, so a rename, added row, or corrected effect line
+  here shows up in the app on the next sync.
 
 ## If PalsDB was created before this fix
 
