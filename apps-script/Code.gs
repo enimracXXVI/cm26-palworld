@@ -669,7 +669,7 @@ function checkSecret_(secret) {
 // actually running this version — editing the code in the Apps Script
 // editor does NOT update what's live until you redeploy (see header
 // comment), which is easy to think you did and not have actually done.
-var SCRIPT_BUILD = '2026-08-12.5';
+var SCRIPT_BUILD = '2026-08-12.6';
 
 function jsonOut_(obj) {
   obj._build = SCRIPT_BUILD;
@@ -1099,28 +1099,52 @@ function clearAllPassivesUnlocked_() {
 /* ============================================================
    HTTP entry points
    ============================================================ */
+// Each source is read inside its own try/catch and tagged by name in
+// the error, instead of one try/catch around everything — so if
+// something throws, the response says exactly which tab it was
+// (e.g. "Sheet error in pals: ..."), rather than us having to guess
+// among six tabs and a dozen call sites.
+function readTagged_(tag, fn) {
+  try { return { tag: tag, value: fn() }; }
+  catch (err) { return { tag: tag, error: (err && err.message) || String(err) }; }
+}
+
 function doGet(e) {
   if (!checkSecret_(e.parameter.secret)) {
     return jsonOut_({ ok: false, error: 'Unauthorized — the SECRET sent by the app does not match this deployment\'s Script Property.' });
   }
-  try {
-    var sheet = getBreedingSheet_();
-    var values = sheet.getDataRange().getValues();
-    var header = values[0];
-    var rows = values.slice(1).filter(function (r) { return r.some(function (c) { return c !== '' && c !== null; }); });
-    var entries = rows.map(function (r) { return rowToEntry_(r, header); });
+  var results = [
+    readTagged_('breedingLog', function () {
+      var sheet = getBreedingSheet_();
+      var values = sheet.getDataRange().getValues();
+      var header = values[0];
+      var rows = values.slice(1).filter(function (r) { return r.some(function (c) { return c !== '' && c !== null; }); });
+      return rows.map(function (r) { return rowToEntry_(r, header); });
+    }),
+    readTagged_('pals', readPals_),
+    readTagged_('partnerSkills', readPartnerSkills_),
+    readTagged_('activeSkills', readActiveSkills_),
+    readTagged_('elements', readElements_),
+    readTagged_('passiveSkills', readPassiveSkills_)
+  ];
+  var failed = results.filter(function (r) { return r.error; });
+  if (failed.length) {
     return jsonOut_({
-      ok: true,
-      entries: entries,
-      pals: readPals_(),
-      partnerSkills: readPartnerSkills_(),
-      activeSkills: readActiveSkills_(),
-      elements: readElements_(),
-      passiveSkills: readPassiveSkills_()
+      ok: false,
+      error: 'Sheet error in ' + failed.map(function (r) { return r.tag; }).join(', ') + ': ' + failed[0].error
     });
-  } catch (err) {
-    return jsonOut_({ ok: false, error: 'Sheet error: ' + err.message });
   }
+  var byTag = {};
+  results.forEach(function (r) { byTag[r.tag] = r.value; });
+  return jsonOut_({
+    ok: true,
+    entries: byTag.breedingLog,
+    pals: byTag.pals,
+    partnerSkills: byTag.partnerSkills,
+    activeSkills: byTag.activeSkills,
+    elements: byTag.elements,
+    passiveSkills: byTag.passiveSkills
+  });
 }
 
 function doPost(e) {
