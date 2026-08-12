@@ -84,6 +84,21 @@ first time it runs, and additively migrates a tab that already exists
   and the app shows that image instead of a colored pill wherever a
   Pal's types are listed.
 
+## If PalsDB was created before this fix
+
+An earlier version of this script wrote `PalId` values like `"001"`
+without forcing the column to plain-text format first — Google Sheets
+silently auto-detects numeric-looking text and converts it, the same
+as if you'd typed `001` into a cell yourself and watched it become
+`1`. That broke every lookup keyed by `PalId` (missing Partner Skills,
+pictures not showing, `Discovered` not syncing) for every Pal whose id
+doesn't have a letter suffix. The current script repairs this
+automatically the next time it runs — it detects any numeric `PalId`
+cell, restores the correct zero-padded id, and then backfills any
+`PartnerSkill`/`PartnerSkillDesc` cells that were left blank because
+of it. Just redeploy (see the note above) and reconnect; no manual
+sheet editing needed.
+
 ## Troubleshooting "can't connect"
 
 The tabs being created proves *some* request from the app reached the

@@ -598,6 +598,73 @@ function partnerSkillLookup_() {
   return map;
 }
 
+// Sheets auto-detects cell type on write, same as typing into the UI:
+// a plain string like "001" silently becomes the number 1, dropping
+// the leading zero — which breaks every lookup keyed by PalId (partner
+// skill backfill, the app's picture/discovered lookups, everything).
+// Forcing the column to plain-text format before writing prevents it.
+function ensurePalIdsAreText_(sheet, header) {
+  var idCol = headerIndex_(header, 'PalId');
+  if (idCol === -1) return;
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+  var numCol = headerIndex_(header, 'Number');
+  var sufCol = headerIndex_(header, 'Suffix');
+
+  var idRange = sheet.getRange(2, idCol + 1, lastRow - 1, 1);
+  var ids = idRange.getValues();
+  var numbers = numCol !== -1 ? sheet.getRange(2, numCol + 1, lastRow - 1, 1).getValues() : null;
+  var suffixes = sufCol !== -1 ? sheet.getRange(2, sufCol + 1, lastRow - 1, 1).getValues() : null;
+
+  var changed = false;
+  var fixed = ids.map(function (r, i) {
+    var v = r[0];
+    if (typeof v === 'number') {
+      changed = true;
+      var n = numbers ? numbers[i][0] : v;
+      var s = suffixes ? (suffixes[i][0] || '') : '';
+      var nStr = String(n);
+      while (nStr.length < 3) nStr = '0' + nStr;
+      return [nStr + s];
+    }
+    return [String(v)];
+  });
+
+  if (changed) {
+    idRange.setNumberFormat('@'); // plain text, so the rewrite below doesn't get re-coerced
+    idRange.setValues(fixed);
+  }
+}
+
+// Fills only blank PartnerSkill/PartnerSkillDesc cells from the app's
+// own data — runs every time, not just when the columns are first
+// created, so a sheet that was previously backfilled incorrectly (e.g.
+// while PalId was still numeric-coerced) heals itself once the IDs are
+// fixed, without ever overwriting a cell you've edited by hand.
+function backfillPartnerSkills_(sheet, header) {
+  var idCol = headerIndex_(header, 'PalId');
+  var psCol = headerIndex_(header, 'PartnerSkill');
+  var psdCol = headerIndex_(header, 'PartnerSkillDesc');
+  if (idCol === -1 || psCol === -1 || psdCol === -1) return;
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+
+  var psLookup = partnerSkillLookup_();
+  var ids = sheet.getRange(2, idCol + 1, lastRow - 1, 1).getValues();
+  var names = sheet.getRange(2, psCol + 1, lastRow - 1, 1).getValues();
+  var descs = sheet.getRange(2, psdCol + 1, lastRow - 1, 1).getValues();
+
+  var nameFixes = [], descFixes = [];
+  for (var i = 0; i < ids.length; i++) {
+    var ps = psLookup[String(ids[i][0])];
+    if (!ps) continue;
+    if (!names[i][0]) nameFixes.push({ row: i, value: ps.name });
+    if (!descs[i][0]) descFixes.push({ row: i, value: ps.desc });
+  }
+  nameFixes.forEach(function (f) { sheet.getRange(2 + f.row, psCol + 1).setValue(f.value); });
+  descFixes.forEach(function (f) { sheet.getRange(2 + f.row, psdCol + 1).setValue(f.value); });
+}
+
 function getPalsSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(PALS_SHEET_NAME);
@@ -610,9 +677,18 @@ function getPalsSheet_() {
       var ps = psLookup[p[0]] || { name: '', desc: '' };
       return [p[0], p[1], p[2], p[3], p[4], '', '', ps.name, ps.desc];
     });
+    // PalId column must be plain-text formatted BEFORE writing, or
+    // Sheets silently turns "001" into 1 (see ensurePalIdsAreText_).
+    sheet.getRange(2, 1, rows.length, 1).setNumberFormat('@');
     sheet.getRange(2, 1, rows.length, PALS_HEADERS.length).setValues(rows);
     return sheet;
   }
+
+  // Repair any PalId cells Sheets auto-coerced into numbers, then
+  // re-derive header (a repair doesn't change columns, but keep this
+  // explicit) before the additive migration below.
+  var headerNow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  ensurePalIdsAreText_(sheet, headerNow);
 
   // Additive migration: append any header this tab doesn't have yet.
   // Never reorders or touches an existing column, so past edits (like
@@ -630,7 +706,7 @@ function getPalsSheet_() {
       if (idCol === -1) idCol = 0; // PalId is always column A on any sheet this script created
       var ids = sheet.getRange(2, idCol + 1, lastRow - 1, 1).getValues();
       var fill = ids.map(function (r) {
-        var ps = psLookup[r[0]] || { name: '', desc: '' };
+        var ps = psLookup[String(r[0])] || { name: '', desc: '' };
         return [col === 'PartnerSkill' ? ps.name : ps.desc];
       });
       sheet.getRange(2, newColIdx, fill.length, 1).setValues(fill);
@@ -638,6 +714,12 @@ function getPalsSheet_() {
     // Discovered / ImageUrl (and anything else) are left blank for
     // pre-existing rows — nothing to backfill them from.
   });
+
+  // Self-heal: fill any still-blank PartnerSkill/PartnerSkillDesc cells
+  // now that PalId is guaranteed correct (covers sheets that were
+  // backfilled incorrectly by an earlier, buggier version of this script).
+  var headerAfter = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  backfillPartnerSkills_(sheet, headerAfter);
 
   return sheet;
 }
@@ -660,13 +742,13 @@ function readPals_() {
     out.push({
       id: String(row[cId]),
       number: cNum !== -1 ? row[cNum] : '',
-      suffix: cSuf !== -1 ? (row[cSuf] || '') : '',
-      name: cName !== -1 ? (row[cName] || '') : '',
+      suffix: cSuf !== -1 ? String(row[cSuf] || '') : '',
+      name: cName !== -1 ? String(row[cName] || '') : '',
       types: cTypes !== -1 && row[cTypes] ? String(row[cTypes]).split('|') : [],
-      imageUrl: cImg !== -1 ? (row[cImg] || '') : '',
+      imageUrl: cImg !== -1 ? String(row[cImg] || '') : '',
       discovered: cDisc !== -1 ? isTruthyCell_(row[cDisc]) : false,
-      partnerSkillName: cPS !== -1 ? (row[cPS] || '') : '',
-      partnerSkillDesc: cPSD !== -1 ? (row[cPSD] || '') : ''
+      partnerSkillName: cPS !== -1 ? String(row[cPS] || '') : '',
+      partnerSkillDesc: cPSD !== -1 ? String(row[cPSD] || '') : ''
     });
   }
   return out;
@@ -716,12 +798,19 @@ function getActiveSkillsSheet_() {
 }
 
 // Matches header cells against a concept loosely, so a pasted source
-// doesn't have to use our exact column names.
+// doesn't have to use our exact column names. Tries an exact match
+// across every column first, only falling back to substring matching
+// if nothing matched exactly — otherwise a header like "Effect" would
+// wrongly match the "ct" candidate (it contains "ct").
 function findColumn_(headerRow, candidates) {
-  for (var i = 0; i < headerRow.length; i++) {
-    var h = String(headerRow[i] || '').toLowerCase().trim();
-    for (var j = 0; j < candidates.length; j++) {
-      if (h === candidates[j] || h.indexOf(candidates[j]) !== -1) return i;
+  var headers = headerRow.map(function (h) { return String(h || '').toLowerCase().trim(); });
+  for (var j = 0; j < candidates.length; j++) {
+    var exact = headers.indexOf(candidates[j]);
+    if (exact !== -1) return exact;
+  }
+  for (var i = 0; i < headers.length; i++) {
+    for (var k = 0; k < candidates.length; k++) {
+      if (headers[i].indexOf(candidates[k]) !== -1) return i;
     }
   }
   return -1;
@@ -747,8 +836,8 @@ function readActiveSkills_() {
     out.push({
       name: String(name),
       element: elCol !== -1 ? String(row[elCol] || '') : '',
-      power: powCol !== -1 ? row[powCol] : '',
-      ct: ctCol !== -1 ? row[ctCol] : '',
+      power: powCol !== -1 ? String(row[powCol] || '') : '',
+      ct: ctCol !== -1 ? String(row[ctCol] || '') : '',
       notes: notesCol !== -1 ? String(row[notesCol] || '') : ''
     });
   }
@@ -778,7 +867,7 @@ function readElements_() {
   for (var i = 1; i < values.length; i++) {
     var row = values[i];
     if (cCode === -1 || !row[cCode]) continue;
-    out.push({ code: String(row[cCode]), name: cName !== -1 ? (row[cName] || '') : '', imageUrl: cImg !== -1 ? (row[cImg] || '') : '' });
+    out.push({ code: String(row[cCode]), name: cName !== -1 ? String(row[cName] || '') : '', imageUrl: cImg !== -1 ? String(row[cImg] || '') : '' });
   }
   return out;
 }
