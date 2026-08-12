@@ -698,10 +698,17 @@ function padPalId_(n) {
 
 // Forces a column to plain-text format for its current rows AND a
 // generous span of future rows, so appending new data later doesn't
-// get silently re-coerced into numbers.
+// get silently re-coerced into numbers. Wrapped in try/catch: a column
+// with a Sheets "column type" applied (right-click header -> Column
+// type -> anything other than default) throws here instead of
+// formatting, since its format is then controlled by that type system
+// — not fatal, just means that column loses this line of defense.
 function ensureTextColumn_(sheet, colIndex1) {
   var maxRows = sheet.getMaxRows();
-  if (maxRows > 1) sheet.getRange(2, colIndex1, maxRows - 1, 1).setNumberFormat('@');
+  if (maxRows > 1) {
+    try { sheet.getRange(2, colIndex1, maxRows - 1, 1).setNumberFormat('@'); }
+    catch (e) { /* typed column — see comment above */ }
+  }
 }
 
 // Repairs any cell in a palId column that Sheets already turned into a
@@ -720,7 +727,7 @@ function repairPalIdColumn_(sheet, colIndex1, startRow, numRows) {
     return [v];
   });
   if (changed) {
-    range.setNumberFormat('@');
+    try { range.setNumberFormat('@'); } catch (e) { /* typed column — see ensureTextColumn_ */ }
     range.setValues(fixed);
   }
 }
@@ -1078,20 +1085,24 @@ function doGet(e) {
   if (!checkSecret_(e.parameter.secret)) {
     return jsonOut_({ ok: false, error: 'Unauthorized — the SECRET sent by the app does not match this deployment\'s Script Property.' });
   }
-  var sheet = getBreedingSheet_();
-  var values = sheet.getDataRange().getValues();
-  var header = values[0];
-  var rows = values.slice(1).filter(function (r) { return r.some(function (c) { return c !== '' && c !== null; }); });
-  var entries = rows.map(function (r) { return rowToEntry_(r, header); });
-  return jsonOut_({
-    ok: true,
-    entries: entries,
-    pals: readPals_(),
-    partnerSkills: readPartnerSkills_(),
-    activeSkills: readActiveSkills_(),
-    elements: readElements_(),
-    passiveSkills: readPassiveSkills_()
-  });
+  try {
+    var sheet = getBreedingSheet_();
+    var values = sheet.getDataRange().getValues();
+    var header = values[0];
+    var rows = values.slice(1).filter(function (r) { return r.some(function (c) { return c !== '' && c !== null; }); });
+    var entries = rows.map(function (r) { return rowToEntry_(r, header); });
+    return jsonOut_({
+      ok: true,
+      entries: entries,
+      pals: readPals_(),
+      partnerSkills: readPartnerSkills_(),
+      activeSkills: readActiveSkills_(),
+      elements: readElements_(),
+      passiveSkills: readPassiveSkills_()
+    });
+  } catch (err) {
+    return jsonOut_({ ok: false, error: 'Sheet error: ' + err.message });
+  }
 }
 
 function doPost(e) {
@@ -1105,36 +1116,40 @@ function doPost(e) {
     return jsonOut_({ ok: false, error: 'Unauthorized — the SECRET sent by the app does not match this deployment\'s Script Property.' });
   }
 
-  if (body.action === 'setDiscovered') { setDiscovered_(body.payload.palId, body.payload.discovered); return jsonOut_({ ok: true }); }
-  if (body.action === 'setDiscoveredBatch') { (body.payload.palIds || []).forEach(function (id) { setDiscovered_(id, true); }); return jsonOut_({ ok: true }); }
-  if (body.action === 'clearDiscovered') { clearAllDiscovered_(); return jsonOut_({ ok: true }); }
-  if (body.action === 'setPalImageUrl') { setPalImageUrl_(body.payload.palId, body.payload.imageUrl); return jsonOut_({ ok: true }); }
-  if (body.action === 'setPassiveUnlocked') { setPassiveUnlocked_(body.payload.name, body.payload.unlocked); return jsonOut_({ ok: true }); }
-  if (body.action === 'setPassiveUnlockedBatch') { (body.payload.names || []).forEach(function (n) { setPassiveUnlocked_(n, true); }); return jsonOut_({ ok: true }); }
-  if (body.action === 'clearPassivesUnlocked') { clearAllPassivesUnlocked_(); return jsonOut_({ ok: true }); }
+  try {
+    if (body.action === 'setDiscovered') { setDiscovered_(body.payload.palId, body.payload.discovered); return jsonOut_({ ok: true }); }
+    if (body.action === 'setDiscoveredBatch') { (body.payload.palIds || []).forEach(function (id) { setDiscovered_(id, true); }); return jsonOut_({ ok: true }); }
+    if (body.action === 'clearDiscovered') { clearAllDiscovered_(); return jsonOut_({ ok: true }); }
+    if (body.action === 'setPalImageUrl') { setPalImageUrl_(body.payload.palId, body.payload.imageUrl); return jsonOut_({ ok: true }); }
+    if (body.action === 'setPassiveUnlocked') { setPassiveUnlocked_(body.payload.name, body.payload.unlocked); return jsonOut_({ ok: true }); }
+    if (body.action === 'setPassiveUnlockedBatch') { (body.payload.names || []).forEach(function (n) { setPassiveUnlocked_(n, true); }); return jsonOut_({ ok: true }); }
+    if (body.action === 'clearPassivesUnlocked') { clearAllPassivesUnlocked_(); return jsonOut_({ ok: true }); }
 
-  var sheet = getBreedingSheet_();
-  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var sheet = getBreedingSheet_();
+    var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 
-  if (body.action === 'add') {
-    sheet.appendRow(entryToRow_(body.payload, header));
-    return jsonOut_({ ok: true });
+    if (body.action === 'add') {
+      sheet.appendRow(entryToRow_(body.payload, header));
+      return jsonOut_({ ok: true });
+    }
+
+    if (body.action === 'update') {
+      var idx = findRowIndexById_(sheet, header, body.payload.id);
+      var row = entryToRow_(body.payload, header);
+      if (idx === -1) sheet.appendRow(row);
+      else sheet.getRange(idx, 1, 1, row.length).setValues([row]);
+      return jsonOut_({ ok: true });
+    }
+
+    if (body.action === 'delete') {
+      var delIdx = findRowIndexById_(sheet, header, body.payload.id);
+      if (delIdx !== -1) sheet.deleteRow(delIdx);
+      return jsonOut_({ ok: true });
+    }
+
+    return jsonOut_({ ok: false, error: 'Unknown action' });
+  } catch (err) {
+    return jsonOut_({ ok: false, error: 'Sheet error: ' + err.message });
   }
-
-  if (body.action === 'update') {
-    var idx = findRowIndexById_(sheet, header, body.payload.id);
-    var row = entryToRow_(body.payload, header);
-    if (idx === -1) sheet.appendRow(row);
-    else sheet.getRange(idx, 1, 1, row.length).setValues([row]);
-    return jsonOut_({ ok: true });
-  }
-
-  if (body.action === 'delete') {
-    var delIdx = findRowIndexById_(sheet, header, body.payload.id);
-    if (delIdx !== -1) sheet.deleteRow(delIdx);
-    return jsonOut_({ ok: true });
-  }
-
-  return jsonOut_({ ok: false, error: 'Unknown action' });
 }
 `;

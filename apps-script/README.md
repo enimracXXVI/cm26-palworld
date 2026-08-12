@@ -122,3 +122,11 @@ pick it up automatically (no code change needed).
   page reload. If you're updating from an older script version, just
   redeploy (see above) and the next sync repairs any already-corrupted
   cells automatically.
+- **If a palId column has a Sheets "column type" applied** (right-click
+  the column header → Column type → anything other than the default),
+  forcing it to plain-text format throws
+  `Exception: You can't set the number format of cells in a typed
+  column.` The script catches this so it no longer crashes the whole
+  request, but that column loses the auto-repair described above —
+  clear its column type (Column type → remove/reset) if you hit this,
+  so palIds there stay reliable.
