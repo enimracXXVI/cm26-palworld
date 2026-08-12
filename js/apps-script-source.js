@@ -669,7 +669,7 @@ function checkSecret_(secret) {
 // actually running this version — editing the code in the Apps Script
 // editor does NOT update what's live until you redeploy (see header
 // comment), which is easy to think you did and not have actually done.
-var SCRIPT_BUILD = '2026-08-12.4';
+var SCRIPT_BUILD = '2026-08-12.5';
 
 function jsonOut_(obj) {
   obj._build = SCRIPT_BUILD;
@@ -724,20 +724,30 @@ function ensureTextColumn_(sheet, colIndex1) {
 // suffix-less ids ("001".."202") are ever numeric-coercible in the
 // first place — a suffixed id like "005B" is never a number to begin
 // with, so it's never touched here.
+// The whole write (format + values) is one try/catch, not just the
+// setNumberFormat call: writing a string back into a Sheets "column
+// type" (smart chip) column can itself throw the identical "can't set
+// the number format of cells in a typed column" error from
+// setValues(), not just from setNumberFormat() — Sheets has to change
+// the cell's format to accept a string there, and that's blocked the
+// same way. If that column can't be repaired at all, skip it entirely
+// rather than half-writing.
 function repairPalIdColumn_(sheet, colIndex1, startRow, numRows) {
   if (numRows <= 0) return;
-  var range = sheet.getRange(startRow, colIndex1, numRows, 1);
-  var values = range.getValues();
-  var changed = false;
-  var fixed = values.map(function (r) {
-    var v = r[0];
-    if (typeof v === 'number') { changed = true; return [padPalId_(v)]; }
-    return [v];
-  });
-  if (changed) {
-    try { range.setNumberFormat('@'); } catch (e) { /* typed column — see ensureTextColumn_ */ }
-    range.setValues(fixed);
-  }
+  try {
+    var range = sheet.getRange(startRow, colIndex1, numRows, 1);
+    var values = range.getValues();
+    var changed = false;
+    var fixed = values.map(function (r) {
+      var v = r[0];
+      if (typeof v === 'number') { changed = true; return [padPalId_(v)]; }
+      return [v];
+    });
+    if (changed) {
+      try { range.setNumberFormat('@'); } catch (e) { /* typed column */ }
+      range.setValues(fixed);
+    }
+  } catch (e) { /* typed column — this column can't be repaired, skip it */ }
 }
 
 function getSheetOrCreate_(name, headers, seedRows) {
