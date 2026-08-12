@@ -771,11 +771,286 @@
     margin-bottom:14px;
   }
   .modal input[type="url"]:focus{ border-color:var(--accent-dim); }
+  .modal input[type="text"],
+  .modal textarea{
+    width:100%;
+    background:var(--bg-alt);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:8px;
+    padding:9px 12px;
+    font-family:var(--font-display);
+    font-size:13px;
+    outline:none;
+    margin-bottom:14px;
+    resize:vertical;
+  }
+  .modal input[type="text"]:focus,
+  .modal textarea:focus{ border-color:var(--accent-dim); }
   .modal-actions .save-btn{
     background:var(--accent-soft);
     border-color:var(--accent-dim);
     color:var(--accent);
   }
+
+  /* ---------- view tabs ---------- */
+  .view-tabs{ margin:14px 0 0; width:fit-content; }
+  body[data-view="breeding"] #controlsPanel,
+  body[data-view="breeding"] #filtersToggle,
+  body[data-view="breeding"] #grid{ display:none !important; }
+  body:not([data-view="breeding"]) #breedToolbar,
+  body:not([data-view="breeding"]) #breedingView{ display:none !important; }
+
+  /* ---------- breeding log ---------- */
+  .breed-field-label{
+    display:block;
+    font-family:var(--font-mono);
+    font-size:10px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--text-dim);
+    margin:0 0 5px;
+  }
+  .breed-toolbar{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:16px;
+  }
+  .breed-search{ flex:1 1 220px; }
+  #sheetSettingsBtn.connected{ color:var(--ok); border-color:var(--ok); background:rgba(111,174,90,0.1); }
+  #sheetSettingsBtn.sync-error{ color:var(--danger); border-color:var(--danger); background:var(--danger-soft); }
+
+  .breed-list{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    margin-top:20px;
+  }
+  .breed-entry{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:14px 16px;
+  }
+  .breed-entry-top{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .breed-entry-date{
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    color:var(--text-dim);
+  }
+  .breed-entry-actions{ display:flex; gap:6px; flex:0 0 auto; }
+  .breed-icon-btn{
+    width:26px; height:26px;
+    display:flex; align-items:center; justify-content:center;
+    background:none;
+    border:1px solid var(--border);
+    border-radius:6px;
+    color:var(--text-dim);
+    cursor:pointer;
+  }
+  .breed-icon-btn:hover{ color:var(--text); border-color:var(--border-strong); }
+  .breed-icon-btn.danger:hover{ color:var(--danger); border-color:var(--danger); }
+  .breed-icon-btn svg{ width:13px; height:13px; }
+  .breed-unsynced{
+    font-family:var(--font-mono);
+    font-size:10px;
+    color:var(--accent);
+    border:1px dashed var(--accent-dim);
+    border-radius:20px;
+    padding:1.5px 7px;
+  }
+  .breed-flow{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .breed-pal-chip{
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+    background:var(--bg-alt);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:8px 11px;
+    min-width:130px;
+  }
+  .breed-pal-chip .pname{ font-size:13px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:6px; }
+  .breed-pal-chip .sex{
+    font-family:var(--font-mono);
+    font-size:9.5px;
+    padding:1px 5px;
+    border-radius:20px;
+    border:1px solid var(--border-strong);
+    color:var(--text-muted);
+  }
+  .breed-pal-chip .sex.male{ color:var(--t-WA); border-color:var(--t-WA); }
+  .breed-pal-chip .sex.female{ color:var(--t-DR); border-color:var(--t-DR); }
+  .breed-pal-chip .skills{ font-size:10.5px; color:var(--text-muted); line-height:1.5; }
+  .breed-pal-chip .skills b{ color:var(--text-dim); font-weight:600; }
+  .breed-plus, .breed-arrow{ color:var(--text-dim); font-family:var(--font-mono); font-size:14px; flex:0 0 auto; }
+  .breed-pal-chip.offspring{ border-color:var(--accent-dim); background:var(--accent-soft); }
+  .breed-entry-notes{
+    margin-top:10px;
+    font-size:12px;
+    color:var(--text-muted);
+    font-style:italic;
+    border-top:1px solid var(--border);
+    padding-top:8px;
+  }
+  .breed-empty{ text-align:center; padding:50px 20px; color:var(--text-muted); }
+  .breed-empty .big{ font-family:var(--font-mono); font-size:13px; color:var(--text-dim); letter-spacing:.05em; text-transform:uppercase; margin-bottom:6px; }
+
+  /* ---------- breeding form modal ---------- */
+  .breed-form-modal{ max-width:560px; max-height:88vh; display:flex; flex-direction:column; overflow-y:auto; }
+  .breed-form-body{ display:flex; flex-direction:column; gap:14px; margin:16px 0; }
+  .breed-block{
+    background:var(--bg-alt);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:12px 14px;
+  }
+  .breed-block-title{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:0 0 10px;
+  }
+  .breed-block.offspring .breed-block-title{ color:var(--ok); }
+  .breed-block-row{ display:flex; gap:10px; margin-bottom:10px; }
+  .breed-block-row:last-child{ margin-bottom:0; }
+  .breed-block-row > div{ flex:1 1 0; min-width:0; }
+
+  .sex-toggle{ display:flex; gap:6px; }
+  .sex-toggle button{
+    flex:1;
+    font-family:var(--font-display);
+    font-size:12px;
+    font-weight:600;
+    padding:8px 4px;
+    border-radius:7px;
+    border:1px solid var(--border);
+    background:var(--panel);
+    color:var(--text-dim);
+    cursor:pointer;
+  }
+  .sex-toggle button.on.male{ color:var(--t-WA); border-color:var(--t-WA); background:rgba(61,143,214,0.12); }
+  .sex-toggle button.on.female{ color:var(--t-DR); border-color:var(--t-DR); background:rgba(196,67,107,0.12); }
+
+  .combo-wrap{ position:relative; }
+  .combo-wrap input{
+    width:100%;
+    background:var(--panel);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:7px;
+    padding:8px 10px;
+    font-family:var(--font-display);
+    font-size:13px;
+    outline:none;
+  }
+  .combo-wrap input:focus{ border-color:var(--accent-dim); }
+  .combo-dropdown{
+    position:absolute;
+    top:calc(100% + 4px);
+    left:0; right:0;
+    background:var(--panel);
+    border:1px solid var(--border-strong);
+    border-radius:8px;
+    max-height:180px;
+    overflow-y:auto;
+    z-index:30;
+    box-shadow:0 8px 24px rgba(0,0,0,0.4);
+  }
+  .combo-option{
+    padding:7px 10px;
+    font-size:12.5px;
+    color:var(--text-muted);
+    cursor:pointer;
+  }
+  .combo-option:hover, .combo-option.hi{ background:var(--accent-soft); color:var(--text); }
+  .combo-empty{ padding:8px 10px; font-size:12px; color:var(--text-dim); }
+
+  .tag-input-wrap{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:7px;
+    padding:6px 7px;
+    position:relative;
+  }
+  .tag-chips{ display:flex; flex-wrap:wrap; gap:5px; }
+  .tag-chip{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    background:var(--accent-soft);
+    border:1px solid var(--accent-dim);
+    color:var(--accent);
+    font-size:11.5px;
+    font-weight:600;
+    padding:3px 4px 3px 9px;
+    border-radius:20px;
+  }
+  .tag-chip button{
+    width:15px; height:15px;
+    border-radius:50%;
+    border:none;
+    background:rgba(0,0,0,0.2);
+    color:inherit;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px;
+    line-height:1;
+    padding:0;
+  }
+  .tag-input-field{
+    border:none;
+    background:none;
+    outline:none;
+    color:var(--text);
+    font-family:var(--font-display);
+    font-size:12.5px;
+    padding:4px 4px;
+    flex:1 1 80px;
+    min-width:80px;
+  }
+  .tag-input-field::placeholder{ color:var(--text-dim); }
+  .tag-input-row{ display:flex; flex-wrap:wrap; gap:5px; align-items:center; }
+  .tag-max-note{ font-size:10.5px; color:var(--text-dim); margin-top:4px; }
+
+  .sheet-steps{
+    font-size:12.5px;
+    color:var(--text-muted);
+    line-height:1.7;
+    padding-left:18px;
+    margin:14px 0;
+  }
+  .sheet-steps b{ color:var(--text); }
+  .sheet-steps code{
+    font-family:var(--font-mono);
+    background:var(--bg-alt);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:1px 5px;
+    color:var(--accent);
+  }
+  .sheet-status-line{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    margin:-6px 0 14px;
+    min-height:14px;
+  }
+  .sheet-status-line.ok{ color:var(--ok); }
+  .sheet-status-line.err{ color:var(--danger); }
 
   /* below this width, the filter controls collapse behind a toggle so the
      sticky header stays short instead of permanently eating the viewport */
@@ -806,6 +1081,9 @@
     .filters-toggle{ padding:8px; }
     #grid{ grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; }
     .passives-modal{ max-height:88vh; }
+    .breed-block-row{ flex-direction:column; gap:10px; }
+    .breed-toolbar{ flex-direction:column; align-items:stretch; }
+    #sheetSettingsBtn span{ overflow:hidden; text-overflow:ellipsis; }
   }
 </style>
 </head>
@@ -839,7 +1117,14 @@
         </button>
       </div>
     </div>
-    <p class="sub">Every catalogued Pal, in Palpedia order. Tick a Pal off once you've caught it — until then, its entry stays sealed.</p>
+
+    <div class="seg view-tabs" id="viewTabs">
+      <button data-view="palpedia" class="active" type="button">Palpedia</button>
+      <button data-view="breeding" type="button">Breeding Log</button>
+    </div>
+
+    <p class="sub" id="subPalpedia">Every catalogued Pal, in Palpedia order. Tick a Pal off once you've caught it — until then, its entry stays sealed.</p>
+    <p class="sub" id="subBreeding" style="display:none;">Log the Pals you bred, what each parent was carrying, and what came out the other side. Optionally synced to a Google Sheet you control.</p>
 
     <div class="controls" id="controlsPanel">
       <div class="row1">
@@ -867,6 +1152,21 @@
       </div>
       <div class="row2" id="typeRow"></div>
     </div>
+
+    <div class="breed-toolbar" id="breedToolbar">
+      <button class="chip-toggle" id="newBreedingBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        New entry
+      </button>
+      <div class="search-box breed-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input id="breedSearchInput" type="text" placeholder="Search entries by Pal name…" autocomplete="off">
+      </div>
+      <button class="chip-toggle" id="sheetSettingsBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.04z"></path></svg>
+        <span id="sheetStatusLabel">Google Sheet: not connected</span>
+      </button>
+    </div>
   </header>
 
   <main id="mainArea">
@@ -875,11 +1175,14 @@
       <div>Loading your Palpedia progress…</div>
     </div>
     <div id="grid" style="display:none;"></div>
+    <div id="breedingView">
+      <div id="breedEntries" class="breed-list"></div>
+    </div>
   </main>
 
   <footer>
-    <span class="note">Saved automatically in this browser · v1.0</span>
-    <button class="reset-btn" id="resetBtn">Reset all progress</button>
+    <span class="note">Saved automatically in this browser · v1.1</span>
+    <button class="reset-btn" id="resetBtn">Reset Palpedia progress</button>
   </footer>
 </div>
 
@@ -922,6 +1225,64 @@
       <button id="imageRemove" style="display:none;">Remove</button>
       <button id="imageCancel">Cancel</button>
       <button class="save-btn" id="imageSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="breedFormModal" style="display:none;">
+  <div class="modal breed-form-modal">
+    <div class="passives-head">
+      <div>
+        <h3 id="breedFormTitle">Log a breeding</h3>
+        <p class="passives-sub">Two parents in, one Pal out. Record exactly what you saw in-game.</p>
+      </div>
+      <button class="close-x" id="breedFormClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+    <div class="breed-form-body" id="breedFormBody"></div>
+    <label class="breed-field-label" for="breedNotes">Notes (optional)</label>
+    <textarea id="breedNotes" placeholder="Anything worth remembering about this combo" rows="2"></textarea>
+    <div class="modal-actions">
+      <button id="breedFormCancel">Cancel</button>
+      <button class="save-btn" id="breedFormSave">Save entry</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="sheetSettingsModal" style="display:none;">
+  <div class="modal sheet-modal">
+    <div class="passives-head">
+      <div>
+        <h3>Google Sheet sync</h3>
+        <p class="passives-sub">Store your breeding log in a Google Sheet you own, so it survives across devices and browsers.</p>
+      </div>
+      <button class="close-x" id="sheetSettingsClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+    <ol class="sheet-steps">
+      <li>Create a new Google Sheet (any name).</li>
+      <li>Open <b>Extensions → Apps Script</b>, delete the placeholder code, and paste in the script below.</li>
+      <li>In the Apps Script editor: <b>Project Settings</b> (gear icon) → <b>Script Properties</b> → add a property named <code>SECRET</code> with any password you choose.</li>
+      <li><b>Deploy → New deployment</b> → type <b>Web app</b> → Execute as <b>Me</b>, Who has access <b>Anyone</b> → <b>Deploy</b>, then authorize it.</li>
+      <li>Copy the Web app URL it gives you and paste it below, along with the same SECRET.</li>
+    </ol>
+    <button class="wiki-link" id="copyScriptBtn" type="button" style="width:100%; margin-bottom:14px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+      Copy the Apps Script code
+    </button>
+    <label class="breed-field-label" for="sheetUrlInput">Web app URL</label>
+    <input id="sheetUrlInput" type="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">
+    <label class="breed-field-label" for="sheetSecretInput">SECRET</label>
+    <input id="sheetSecretInput" type="text" placeholder="The same value you set as SECRET" autocomplete="off">
+    <p class="sheet-status-line" id="sheetTestStatus"></p>
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button id="sheetDisconnect" style="display:none;">Disconnect</button>
+      <div style="display:flex; gap:8px;">
+        <button id="sheetSettingsCancel">Cancel</button>
+        <button class="save-btn" id="sheetSettingsSave">Save &amp; test</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1945,15 +2306,680 @@ document.getElementById('imageRemove').addEventListener('click', () => {
 });
 
 /* ============================================================
+   VIEW TABS (Palpedia <-> Breeding Log)
+   ============================================================ */
+function setView(view){
+  document.body.dataset.view = view;
+  document.querySelectorAll('#viewTabs button[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  document.getElementById('subPalpedia').style.display = view === 'breeding' ? 'none' : '';
+  document.getElementById('subBreeding').style.display = view === 'breeding' ? '' : 'none';
+  if(view === 'breeding') renderBreedEntries();
+}
+document.getElementById('viewTabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-view]');
+  if(!btn) return;
+  setView(btn.dataset.view);
+});
+
+/* ============================================================
+   BREEDING LOG
+   Lets the person record their own breeding combos: the two
+   parent Pals (sex + skills as they saw them in-game) and the
+   resulting offspring. Cached in localStorage, optionally synced
+   to a Google Sheet the person owns via a small Apps Script
+   bridge (see apps-script/Code.gs) — never anything hosted by us.
+   ============================================================ */
+const BREEDING_STORAGE_KEY = 'palpedia-breeding-v1';
+const SHEET_CONFIG_KEY = 'palpedia-sheet-config-v1';
+let breedingEntries = [];
+let sheetConfig = { url:'', secret:'' };
+let breedFilters = { search:'' };
+let editingBreedId = null;
+let breedBlocks = null;
+
+const APPS_SCRIPT_SOURCE = `/**
+ * Palpedia Field Tracker — Breeding Log bridge.
+ *
+ * Paste this into Extensions -> Apps Script on a Google Sheet, add a
+ * Script Property named SECRET (Project Settings -> Script Properties),
+ * then Deploy -> New deployment -> Web app (Execute as: Me, Who has
+ * access: Anyone). Paste the resulting URL and your SECRET into the
+ * app's "Google Sheet sync" settings.
+ *
+ * Rows are keyed by an id generated client-side; the sheet is created
+ * automatically on first use if it doesn't already exist.
+ */
+var SHEET_NAME = 'BreedingLog';
+var HEADERS = [
+  'id', 'createdAt',
+  'parentA_palId', 'parentA_sex', 'parentA_passives', 'parentA_actives',
+  'parentB_palId', 'parentB_sex', 'parentB_passives', 'parentB_actives',
+  'offspring_palId', 'offspring_sex', 'offspring_passives', 'offspring_actives',
+  'notes'
+];
+
+function getSecret_() {
+  return PropertiesService.getScriptProperties().getProperty('SECRET') || '';
+}
+
+function checkSecret_(secret) {
+  var expected = getSecret_();
+  return !!expected && secret === expected;
+}
+
+function getSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAME);
+    sheet.appendRow(HEADERS);
+  }
+  return sheet;
+}
+
+function jsonOut_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function rowToEntry_(row) {
+  return {
+    id: row[0],
+    createdAt: row[1],
+    parentA: { palId: row[2], sex: row[3], passives: row[4] ? String(row[4]).split('|') : [], actives: row[5] ? String(row[5]).split('|') : [] },
+    parentB: { palId: row[6], sex: row[7], passives: row[8] ? String(row[8]).split('|') : [], actives: row[9] ? String(row[9]).split('|') : [] },
+    offspring: { palId: row[10], sex: row[11], passives: row[12] ? String(row[12]).split('|') : [], actives: row[13] ? String(row[13]).split('|') : [] },
+    notes: row[14] || ''
+  };
+}
+
+function entryToRow_(e) {
+  var pa = e.parentA || {}, pb = e.parentB || {}, off = e.offspring || {};
+  return [
+    e.id, e.createdAt,
+    pa.palId || '', pa.sex || '', (pa.passives || []).join('|'), (pa.actives || []).join('|'),
+    pb.palId || '', pb.sex || '', (pb.passives || []).join('|'), (pb.actives || []).join('|'),
+    off.palId || '', off.sex || '', (off.passives || []).join('|'), (off.actives || []).join('|'),
+    e.notes || ''
+  ];
+}
+
+function findRowIndexById_(sheet, id) {
+  var values = sheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i++) {
+    if (values[i][0] === id) return i + 1;
+  }
+  return -1;
+}
+
+function doGet(e) {
+  if (!checkSecret_(e.parameter.secret)) {
+    return jsonOut_({ ok: false, error: 'Unauthorized' });
+  }
+  var sheet = getSheet_();
+  var values = sheet.getDataRange().getValues();
+  var rows = values.slice(1).filter(function (r) { return r[0]; });
+  var entries = rows.map(rowToEntry_);
+  return jsonOut_({ ok: true, entries: entries });
+}
+
+function doPost(e) {
+  var body;
+  try {
+    body = JSON.parse(e.postData.contents);
+  } catch (err) {
+    return jsonOut_({ ok: false, error: 'Bad request' });
+  }
+  if (!checkSecret_(body.secret)) {
+    return jsonOut_({ ok: false, error: 'Unauthorized' });
+  }
+  var sheet = getSheet_();
+
+  if (body.action === 'add') {
+    sheet.appendRow(entryToRow_(body.payload));
+    return jsonOut_({ ok: true });
+  }
+
+  if (body.action === 'update') {
+    var idx = findRowIndexById_(sheet, body.payload.id);
+    if (idx === -1) {
+      sheet.appendRow(entryToRow_(body.payload));
+    } else {
+      var row = entryToRow_(body.payload);
+      sheet.getRange(idx, 1, 1, row.length).setValues([row]);
+    }
+    return jsonOut_({ ok: true });
+  }
+
+  if (body.action === 'delete') {
+    var delIdx = findRowIndexById_(sheet, body.payload.id);
+    if (delIdx !== -1) sheet.deleteRow(delIdx);
+    return jsonOut_({ ok: true });
+  }
+
+  return jsonOut_({ ok: false, error: 'Unknown action' });
+}
+`;
+
+function loadBreedingLocal(){
+  try{
+    const raw = localStorage.getItem(BREEDING_STORAGE_KEY);
+    if(raw) breedingEntries = JSON.parse(raw) || [];
+  }catch(e){ breedingEntries = []; }
+  try{
+    const raw2 = localStorage.getItem(SHEET_CONFIG_KEY);
+    if(raw2) sheetConfig = Object.assign({ url:'', secret:'' }, JSON.parse(raw2));
+  }catch(e){}
+}
+function persistBreedingLocal(){
+  try{ localStorage.setItem(BREEDING_STORAGE_KEY, JSON.stringify(breedingEntries)); }catch(e){}
+}
+function persistSheetConfig(){
+  try{ localStorage.setItem(SHEET_CONFIG_KEY, JSON.stringify(sheetConfig)); }catch(e){}
+}
+
+/* ---------- Google Sheet sync ---------- */
+async function sheetFetchList(){
+  const url = new URL(sheetConfig.url);
+  url.searchParams.set('secret', sheetConfig.secret);
+  const res = await fetch(url.toString());
+  const data = await res.json();
+  if(!data.ok) throw new Error(data.error || 'Request failed');
+  return data.entries;
+}
+async function sheetSend(action, payload){
+  const res = await fetch(sheetConfig.url, {
+    method:'POST',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' }, // avoids a CORS preflight Apps Script can't answer
+    body: JSON.stringify({ action, secret: sheetConfig.secret, payload })
+  });
+  const data = await res.json();
+  if(!data.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+function updateSheetStatusLabel(){
+  const btn = document.getElementById('sheetSettingsBtn');
+  const label = document.getElementById('sheetStatusLabel');
+  btn.classList.remove('connected','sync-error');
+  if(sheetConfig.url){
+    btn.classList.add('connected');
+    label.textContent = 'Google Sheet: connected';
+  } else {
+    label.textContent = 'Google Sheet: not connected';
+  }
+}
+async function syncFromSheet(){
+  if(!sheetConfig.url) return;
+  try{
+    const entries = await sheetFetchList();
+    breedingEntries = entries.map(e => Object.assign({ synced:true }, e));
+    persistBreedingLocal();
+    renderBreedEntries();
+  }catch(e){
+    document.getElementById('sheetSettingsBtn').classList.add('sync-error');
+    showToast('Could not reach your Google Sheet — showing your last saved copy.', true);
+  }
+}
+
+/* ---------- searchable Pal combobox ---------- */
+function createPalCombo(){
+  const wrap = document.createElement('div');
+  wrap.className = 'combo-wrap';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'Search Pal by name…';
+  input.autocomplete = 'off';
+  wrap.appendChild(input);
+  const dropdown = document.createElement('div');
+  dropdown.className = 'combo-dropdown';
+  dropdown.style.display = 'none';
+  wrap.appendChild(dropdown);
+
+  let selectedId = '';
+
+  function setSelected(id){
+    selectedId = id;
+    const p = PALS.find(x => x[0] === id);
+    input.value = p ? p[3] : '';
+  }
+  function renderDropdown(query){
+    const q = query.trim().toLowerCase();
+    const matches = (!q ? PALS : PALS.filter(p => p[3].toLowerCase().includes(q))).slice(0, 30);
+    dropdown.innerHTML = matches.length === 0
+      ? `<div class="combo-empty">No Pals match "${escapeHtml(query)}"</div>`
+      : matches.map(p => `<div class="combo-option" data-id="${p[0]}">№${String(p[1]).padStart(3,'0')}${p[2]} ${escapeHtml(p[3])}</div>`).join('');
+    dropdown.style.display = 'block';
+  }
+  input.addEventListener('focus', () => renderDropdown(input.value));
+  input.addEventListener('input', () => { selectedId = ''; renderDropdown(input.value); });
+  input.addEventListener('blur', () => setTimeout(() => { dropdown.style.display = 'none'; }, 150));
+  dropdown.addEventListener('mousedown', (e) => {
+    const opt = e.target.closest('.combo-option');
+    if(!opt) return;
+    e.preventDefault();
+    setSelected(opt.dataset.id);
+    dropdown.style.display = 'none';
+  });
+
+  return {
+    el: wrap,
+    getValue(){ return selectedId; },
+    setValue(id){ setSelected(id || ''); },
+    reset(){ setSelected(''); }
+  };
+}
+
+/* ---------- tag input (chips), optionally with suggestions ---------- */
+function createTagInput({ maxCount, suggestions, placeholder }){
+  const wrap = document.createElement('div');
+  wrap.className = 'tag-input-wrap';
+  const row = document.createElement('div');
+  row.className = 'tag-input-row';
+  wrap.appendChild(row);
+
+  const chipsHolder = document.createElement('div');
+  chipsHolder.className = 'tag-chips';
+  row.appendChild(chipsHolder);
+
+  const input = document.createElement('input');
+  input.className = 'tag-input-field';
+  input.type = 'text';
+  input.placeholder = placeholder || '';
+  input.autocomplete = 'off';
+  row.appendChild(input);
+
+  let dropdown = null;
+  if(suggestions){
+    dropdown = document.createElement('div');
+    dropdown.className = 'combo-dropdown';
+    dropdown.style.display = 'none';
+    wrap.appendChild(dropdown);
+  }
+
+  const note = document.createElement('div');
+  note.className = 'tag-max-note';
+  wrap.appendChild(note);
+
+  let tags = [];
+
+  function updateNote(){
+    note.textContent = `${tags.length} / ${maxCount} added` + (tags.length >= maxCount ? ' — remove one to add another' : '');
+  }
+  function renderChips(){
+    chipsHolder.innerHTML = '';
+    tags.forEach((t, i) => {
+      const chip = document.createElement('span');
+      chip.className = 'tag-chip';
+      const label = document.createElement('span');
+      label.textContent = t;
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.setAttribute('aria-label','Remove');
+      removeBtn.textContent = '×';
+      removeBtn.addEventListener('click', () => { tags.splice(i, 1); renderChips(); });
+      chip.appendChild(label);
+      chip.appendChild(removeBtn);
+      chipsHolder.appendChild(chip);
+    });
+    input.style.display = tags.length >= maxCount ? 'none' : '';
+    updateNote();
+  }
+  function addTag(value){
+    const v = (value || '').trim();
+    if(!v || tags.length >= maxCount || tags.includes(v)) return;
+    tags.push(v);
+    input.value = '';
+    renderChips();
+    if(dropdown) dropdown.style.display = 'none';
+  }
+  input.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' || e.key === ','){
+      e.preventDefault();
+      addTag(input.value);
+    } else if(e.key === 'Backspace' && !input.value && tags.length){
+      tags.pop();
+      renderChips();
+    }
+  });
+  if(suggestions){
+    function renderDropdown(){
+      const q = input.value.trim().toLowerCase();
+      const pool = suggestions.filter(s => !tags.includes(s));
+      const matches = (!q ? pool : pool.filter(s => s.toLowerCase().includes(q))).slice(0, 30);
+      if(matches.length === 0){ dropdown.style.display = 'none'; return; }
+      dropdown.innerHTML = matches.map(s => `<div class="combo-option" data-v="${escapeHtml(s)}">${escapeHtml(s)}</div>`).join('');
+      dropdown.style.display = 'block';
+    }
+    input.addEventListener('focus', renderDropdown);
+    input.addEventListener('input', renderDropdown);
+    input.addEventListener('blur', () => setTimeout(() => { dropdown.style.display = 'none'; }, 150));
+    dropdown.addEventListener('mousedown', (e) => {
+      const opt = e.target.closest('.combo-option');
+      if(!opt) return;
+      e.preventDefault();
+      addTag(opt.dataset.v);
+    });
+  }
+  renderChips();
+
+  return {
+    el: wrap,
+    getValue(){ return tags.slice(); },
+    setValue(arr){ tags = (arr || []).slice(0, maxCount); renderChips(); },
+    reset(){ tags = []; renderChips(); }
+  };
+}
+
+/* ---------- one parent/offspring block (Pal + sex + passives + actives) ---------- */
+function createBreedBlock(title, isOffspring){
+  const block = document.createElement('div');
+  block.className = 'breed-block' + (isOffspring ? ' offspring' : '');
+
+  const h = document.createElement('div');
+  h.className = 'breed-block-title';
+  h.textContent = title;
+  block.appendChild(h);
+
+  const row1 = document.createElement('div');
+  row1.className = 'breed-block-row';
+  const palCell = document.createElement('div');
+  palCell.innerHTML = '<label class="breed-field-label">Pal</label>';
+  const palCombo = createPalCombo();
+  palCell.appendChild(palCombo.el);
+  row1.appendChild(palCell);
+
+  const sexCell = document.createElement('div');
+  sexCell.innerHTML = '<label class="breed-field-label">Sex</label>';
+  const sexToggle = document.createElement('div');
+  sexToggle.className = 'sex-toggle';
+  const maleBtn = document.createElement('button');
+  maleBtn.type = 'button'; maleBtn.className = 'male'; maleBtn.textContent = 'Male';
+  const femaleBtn = document.createElement('button');
+  femaleBtn.type = 'button'; femaleBtn.className = 'female'; femaleBtn.textContent = 'Female';
+  let sexVal = '';
+  function setSex(v){
+    sexVal = v;
+    maleBtn.classList.toggle('on', v === 'Male');
+    femaleBtn.classList.toggle('on', v === 'Female');
+  }
+  maleBtn.addEventListener('click', () => setSex(sexVal === 'Male' ? '' : 'Male'));
+  femaleBtn.addEventListener('click', () => setSex(sexVal === 'Female' ? '' : 'Female'));
+  sexToggle.appendChild(maleBtn);
+  sexToggle.appendChild(femaleBtn);
+  sexCell.appendChild(sexToggle);
+  row1.appendChild(sexCell);
+  block.appendChild(row1);
+
+  const row2 = document.createElement('div');
+  row2.className = 'breed-block-row';
+  const passCell = document.createElement('div');
+  passCell.innerHTML = '<label class="breed-field-label">Passive skills (up to 4)</label>';
+  const passiveInput = createTagInput({ maxCount:4, suggestions: PASSIVE_SKILLS.map(p => p[0]), placeholder:'Search passives…' });
+  passCell.appendChild(passiveInput.el);
+  row2.appendChild(passCell);
+  block.appendChild(row2);
+
+  const row3 = document.createElement('div');
+  row3.className = 'breed-block-row';
+  const actCell = document.createElement('div');
+  actCell.innerHTML = '<label class="breed-field-label">Active skills (up to 3)</label>';
+  const activeInput = createTagInput({ maxCount:3, suggestions:null, placeholder:'Type a skill, press Enter…' });
+  actCell.appendChild(activeInput.el);
+  row3.appendChild(actCell);
+  block.appendChild(row3);
+
+  return {
+    el: block,
+    getValue(){ return { palId: palCombo.getValue(), sex: sexVal, passives: passiveInput.getValue(), actives: activeInput.getValue() }; },
+    setValue(v){
+      v = v || {};
+      palCombo.setValue(v.palId);
+      setSex(v.sex || '');
+      passiveInput.setValue(v.passives);
+      activeInput.setValue(v.actives);
+    },
+    reset(){ palCombo.reset(); setSex(''); passiveInput.reset(); activeInput.reset(); }
+  };
+}
+
+function initBreedForm(){
+  const body = document.getElementById('breedFormBody');
+  const a = createBreedBlock('Parent A', false);
+  const b = createBreedBlock('Parent B', false);
+  const off = createBreedBlock('Offspring', true);
+  body.appendChild(a.el);
+  body.appendChild(b.el);
+  body.appendChild(off.el);
+  breedBlocks = { a, b, off };
+}
+
+/* ---------- rendering the entry list ---------- */
+function palNameById(id){
+  const p = PALS.find(x => x[0] === id);
+  return p ? p[3] : (id || 'Unknown Pal');
+}
+function formatEntryDate(iso){
+  if(!iso) return '';
+  try{ return new Date(iso).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }); }
+  catch(e){ return ''; }
+}
+function breedPalChipHtml(data, isOffspring){
+  const name = palNameById(data.palId);
+  const sexCls = data.sex === 'Male' ? 'male' : data.sex === 'Female' ? 'female' : '';
+  const passives = data.passives && data.passives.length ? data.passives.join(', ') : '—';
+  const actives = data.actives && data.actives.length ? data.actives.join(', ') : '—';
+  return `<div class="breed-pal-chip${isOffspring ? ' offspring' : ''}">
+    <div class="pname">${escapeHtml(name)}${data.sex ? ` <span class="sex ${sexCls}">${data.sex}</span>` : ''}</div>
+    <div class="skills"><b>Passives:</b> ${escapeHtml(passives)}</div>
+    <div class="skills"><b>Actives:</b> ${escapeHtml(actives)}</div>
+  </div>`;
+}
+function renderBreedEntries(){
+  const container = document.getElementById('breedEntries');
+  const q = (breedFilters.search || '').trim().toLowerCase();
+  const entries = breedingEntries.filter(e => {
+    if(!q) return true;
+    const names = [palNameById(e.parentA.palId), palNameById(e.parentB.palId), palNameById(e.offspring.palId)].join(' ').toLowerCase();
+    return names.includes(q);
+  }).slice().sort((x, y) => (y.createdAt || '').localeCompare(x.createdAt || ''));
+
+  if(entries.length === 0){
+    container.innerHTML = `<div class="breed-empty"><div class="big">No entries yet</div>Log your first breeding combo with "New entry".</div>`;
+    return;
+  }
+
+  container.innerHTML = entries.map(e => `
+    <div class="breed-entry" data-id="${e.id}">
+      <div class="breed-entry-top">
+        <span class="breed-entry-date">${formatEntryDate(e.createdAt)}</span>
+        <div class="breed-entry-actions">
+          ${e.synced === false && sheetConfig.url ? '<span class="breed-unsynced">Not synced</span>' : ''}
+          <button class="breed-icon-btn" data-action="edit-breed" title="Edit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+          </button>
+          <button class="breed-icon-btn danger" data-action="delete-breed" title="Delete">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path></svg>
+          </button>
+        </div>
+      </div>
+      <div class="breed-flow">
+        ${breedPalChipHtml(e.parentA)}
+        <span class="breed-plus">+</span>
+        ${breedPalChipHtml(e.parentB)}
+        <span class="breed-arrow">→</span>
+        ${breedPalChipHtml(e.offspring, true)}
+      </div>
+      ${e.notes ? `<div class="breed-entry-notes">${escapeHtml(e.notes)}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+/* ---------- form open/close/save ---------- */
+function openBreedForm(entry){
+  editingBreedId = entry ? entry.id : null;
+  document.getElementById('breedFormTitle').textContent = entry ? 'Edit breeding entry' : 'Log a breeding';
+  breedBlocks.a.setValue(entry ? entry.parentA : null);
+  breedBlocks.b.setValue(entry ? entry.parentB : null);
+  breedBlocks.off.setValue(entry ? entry.offspring : null);
+  document.getElementById('breedNotes').value = entry ? (entry.notes || '') : '';
+  document.getElementById('breedFormModal').style.display = 'flex';
+}
+function closeBreedForm(){
+  document.getElementById('breedFormModal').style.display = 'none';
+  editingBreedId = null;
+}
+
+document.getElementById('newBreedingBtn').addEventListener('click', () => {
+  breedBlocks.a.reset(); breedBlocks.b.reset(); breedBlocks.off.reset();
+  openBreedForm(null);
+});
+document.getElementById('breedFormClose').addEventListener('click', closeBreedForm);
+document.getElementById('breedFormCancel').addEventListener('click', closeBreedForm);
+document.getElementById('breedFormModal').addEventListener('click', (e) => { if(e.target.id === 'breedFormModal') closeBreedForm(); });
+
+document.getElementById('breedFormSave').addEventListener('click', async () => {
+  const a = breedBlocks.a.getValue();
+  const b = breedBlocks.b.getValue();
+  const off = breedBlocks.off.getValue();
+  if(!a.palId || !b.palId || !off.palId){
+    showToast('Pick a Pal for both parents and the offspring.', true);
+    return;
+  }
+  const notes = document.getElementById('breedNotes').value.trim();
+  const wasEditing = editingBreedId;
+
+  let entry;
+  if(wasEditing){
+    entry = breedingEntries.find(x => x.id === wasEditing);
+    if(!entry) return;
+    entry.parentA = a; entry.parentB = b; entry.offspring = off; entry.notes = notes;
+  } else {
+    entry = {
+      id: (crypto.randomUUID ? crypto.randomUUID() : 'e' + Date.now() + Math.random().toString(36).slice(2)),
+      createdAt: new Date().toISOString(),
+      parentA: a, parentB: b, offspring: off, notes
+    };
+    breedingEntries.push(entry);
+  }
+  entry.synced = false;
+  persistBreedingLocal();
+  renderBreedEntries();
+  closeBreedForm();
+
+  if(sheetConfig.url){
+    try{
+      await sheetSend(wasEditing ? 'update' : 'add', entry);
+      entry.synced = true;
+      persistBreedingLocal();
+      renderBreedEntries();
+    }catch(err){
+      showToast('Saved locally, but could not sync to your Google Sheet.', true);
+    }
+  }
+});
+
+document.getElementById('breedEntries').addEventListener('click', async (e) => {
+  const card = e.target.closest('.breed-entry');
+  if(!card) return;
+  const id = card.dataset.id;
+  if(e.target.closest('[data-action="edit-breed"]')){
+    const entry = breedingEntries.find(x => x.id === id);
+    if(entry) openBreedForm(entry);
+    return;
+  }
+  if(e.target.closest('[data-action="delete-breed"]')){
+    breedingEntries = breedingEntries.filter(x => x.id !== id);
+    persistBreedingLocal();
+    renderBreedEntries();
+    if(sheetConfig.url){
+      try{ await sheetSend('delete', { id }); }
+      catch(err){ showToast('Deleted locally, but could not remove it from your Google Sheet.', true); }
+    }
+  }
+});
+
+document.getElementById('breedSearchInput').addEventListener('input', (e) => {
+  breedFilters.search = e.target.value;
+  renderBreedEntries();
+});
+
+/* ---------- Google Sheet settings modal ---------- */
+document.getElementById('sheetSettingsBtn').addEventListener('click', () => {
+  document.getElementById('sheetUrlInput').value = sheetConfig.url || '';
+  document.getElementById('sheetSecretInput').value = sheetConfig.secret || '';
+  document.getElementById('sheetDisconnect').style.display = sheetConfig.url ? 'inline-block' : 'none';
+  const statusEl = document.getElementById('sheetTestStatus');
+  statusEl.textContent = '';
+  statusEl.className = 'sheet-status-line';
+  document.getElementById('sheetSettingsModal').style.display = 'flex';
+});
+document.getElementById('sheetSettingsClose').addEventListener('click', () => { document.getElementById('sheetSettingsModal').style.display = 'none'; });
+document.getElementById('sheetSettingsCancel').addEventListener('click', () => { document.getElementById('sheetSettingsModal').style.display = 'none'; });
+document.getElementById('sheetSettingsModal').addEventListener('click', (e) => { if(e.target.id === 'sheetSettingsModal') document.getElementById('sheetSettingsModal').style.display = 'none'; });
+
+document.getElementById('sheetSettingsSave').addEventListener('click', async () => {
+  const url = document.getElementById('sheetUrlInput').value.trim();
+  const secret = document.getElementById('sheetSecretInput').value.trim();
+  const statusEl = document.getElementById('sheetTestStatus');
+  if(!url || !secret){
+    statusEl.textContent = 'Both the Web app URL and SECRET are required.';
+    statusEl.className = 'sheet-status-line err';
+    return;
+  }
+  statusEl.textContent = 'Testing connection…';
+  statusEl.className = 'sheet-status-line';
+  const prevConfig = Object.assign({}, sheetConfig);
+  sheetConfig = { url, secret };
+  try{
+    const entries = await sheetFetchList();
+    persistSheetConfig();
+    breedingEntries = entries.map(e => Object.assign({ synced:true }, e));
+    persistBreedingLocal();
+    renderBreedEntries();
+    updateSheetStatusLabel();
+    statusEl.textContent = `Connected — loaded ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}.`;
+    statusEl.className = 'sheet-status-line ok';
+    showToast('Google Sheet connected.');
+    setTimeout(() => { document.getElementById('sheetSettingsModal').style.display = 'none'; }, 900);
+  }catch(err){
+    sheetConfig = prevConfig;
+    statusEl.textContent = 'Could not connect — check the URL and SECRET, and that the deployment allows "Anyone" access.';
+    statusEl.className = 'sheet-status-line err';
+  }
+});
+
+document.getElementById('sheetDisconnect').addEventListener('click', () => {
+  sheetConfig = { url:'', secret:'' };
+  persistSheetConfig();
+  updateSheetStatusLabel();
+  document.getElementById('sheetSettingsModal').style.display = 'none';
+  showToast('Disconnected. Your breeding log stays saved in this browser.');
+});
+
+document.getElementById('copyScriptBtn').addEventListener('click', async () => {
+  try{
+    await navigator.clipboard.writeText(APPS_SCRIPT_SOURCE);
+    showToast('Script copied — paste it into Apps Script.');
+  }catch(err){
+    showToast('Could not copy automatically — select and copy manually.', true);
+  }
+});
+
+/* ============================================================
    INIT
    ============================================================ */
 (function init(){
   buildTypeChips();
   document.getElementById('totalCount').textContent = PALS.length;
   loadState();
+  loadBreedingLocal();
+  initBreedForm();
+  updateSheetStatusLabel();
+  setView('palpedia');
   document.getElementById('loadingScreen').style.display = 'none';
   document.getElementById('grid').style.display = 'grid';
   render();
+  renderBreedEntries();
+  if(sheetConfig.url) syncFromSheet();
 })();
 </script>
 </body>
