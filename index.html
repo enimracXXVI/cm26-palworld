@@ -185,29 +185,14 @@
     <div class="passives-head">
       <div>
         <h3>Google Sheet sync</h3>
-        <p class="passives-sub">Store your breeding log, Pals, passive/active skills, and element pictures in a Google Sheet you own, so it survives across devices and browsers.</p>
+        <p class="passives-sub">Enter your SECRET to sync this device.</p>
       </div>
       <button class="close-x" id="sheetSettingsClose" aria-label="Close">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
     </div>
-    <ol class="sheet-steps">
-      <li>Open the <b>Palpedia Field Tracker Data</b> sheet already created in your Drive (or any Google Sheet of your own).</li>
-      <li>Open <b>Extensions → Apps Script</b>, delete the placeholder code, and paste in the script below.</li>
-      <li>In the Apps Script editor: <b>Project Settings</b> (gear icon) → <b>Script Properties</b> → add a property named <code>SECRET</code> with any password you choose.</li>
-      <li><b>Deploy → New deployment</b> → type <b>Web app</b> → Execute as <b>Me</b>, Who has access <b>Anyone</b> → <b>Deploy</b>, then authorize it.</li>
-      <li>Copy the Web app URL it gives you and paste it below, along with the same SECRET.</li>
-      <li>Once connected, six tabs are used on the sheet: <b>pals</b> (id/palId/name/type/imageUrl/discovered — the app writes <code>imageUrl</code> and <code>discovered</code> as you use it), <b>partnerSkills</b> (id/palId/palName/name/description — its own tab), <b>passiveSkills</b> (id/name/rank/surgery/effects/unlocked — the app writes <code>unlocked</code>, adding that column itself if it's missing), <b>activeSkills</b> (id/name/element/power/ct/exclusive/description/notes — paste your own data, only <code>name</code> is required), <b>elements</b> (id/code/name/imageUrl — the 9 types), and <b>breedingLog</b> (fully owned by the app). Any tab that already exists keeps exactly the columns you've set up — nothing is renamed or reordered.</li>
-    </ol>
-    <p class="sheet-redeploy-note">Already connected and pasting in an updated script? Editing the code alone doesn't update your live URL — go to <b>Deploy → Manage deployments</b> → pencil icon → <b>Version: New version</b> → <b>Deploy</b>.</p>
-    <button class="wiki-link" id="copyScriptBtn" type="button" style="width:100%; margin-bottom:14px;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-      Copy the Apps Script code
-    </button>
-    <label class="breed-field-label" for="sheetUrlInput">Web app URL</label>
-    <input id="sheetUrlInput" type="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">
     <label class="breed-field-label" for="sheetSecretInput">SECRET</label>
-    <input id="sheetSecretInput" type="text" placeholder="The same value you set as SECRET" autocomplete="off">
+    <input id="sheetSecretInput" type="text" placeholder="The password you set as SECRET in Apps Script" autocomplete="off">
     <p class="sheet-status-line" id="sheetTestStatus"></p>
     <div class="modal-actions" style="justify-content:space-between;">
       <button id="sheetDisconnect" style="display:none;">Disconnect</button>
@@ -216,6 +201,24 @@
         <button class="save-btn" id="sheetSettingsSave">Save &amp; test</button>
       </div>
     </div>
+    <details class="sheet-advanced">
+      <summary>First-time setup / using a different sheet</summary>
+      <label class="breed-field-label" for="sheetUrlInput">Web app URL</label>
+      <input id="sheetUrlInput" type="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">
+      <ol class="sheet-steps">
+        <li>Open the <b>Palpedia Field Tracker Data</b> sheet already created in your Drive (or any Google Sheet of your own).</li>
+        <li>Open <b>Extensions → Apps Script</b>, delete the placeholder code, and paste in the script below.</li>
+        <li>In the Apps Script editor: <b>Project Settings</b> (gear icon) → <b>Script Properties</b> → add a property named <code>SECRET</code> with any password you choose.</li>
+        <li><b>Deploy → New deployment</b> → type <b>Web app</b> → Execute as <b>Me</b>, Who has access <b>Anyone</b> → <b>Deploy</b>, then authorize it.</li>
+        <li>Copy the Web app URL it gives you and paste it above, along with the same SECRET.</li>
+        <li>Once connected, six tabs are used on the sheet: <b>pals</b> (id/palId/name/type/imageUrl/discovered — the app writes <code>imageUrl</code> and <code>discovered</code> as you use it), <b>partnerSkills</b> (id/palId/palName/name/description — its own tab), <b>passiveSkills</b> (id/name/rank/surgery/effects/unlocked — the app writes <code>unlocked</code>, adding that column itself if it's missing), <b>activeSkills</b> (id/name/element/power/ct/exclusive/description/notes — paste your own data, only <code>name</code> is required), <b>elements</b> (id/code/name/imageUrl — the 9 types), and <b>breedingLog</b> (fully owned by the app). Any tab that already exists keeps exactly the columns you've set up — nothing is renamed or reordered.</li>
+      </ol>
+      <p class="sheet-redeploy-note">Already connected and pasting in an updated script? Editing the code alone doesn't update your live URL — go to <b>Deploy → Manage deployments</b> → pencil icon → <b>Version: New version</b> → <b>Deploy</b>.</p>
+      <button class="wiki-link" id="copyScriptBtn" type="button" style="width:100%;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        Copy the Apps Script code
+      </button>
+    </details>
   </div>
 </div>
 

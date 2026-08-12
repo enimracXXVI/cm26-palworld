@@ -113,7 +113,7 @@ async function parseSheetResponse_(res){
   catch(e){
     throw new Error(`The Sheet didn't return JSON (HTTP ${res.status}). Usually this means the deployment's "Who has access" isn't set to "Anyone", or the URL isn't the /exec one from Deploy → New deployment.`);
   }
-  if(!data.ok) throw new Error(data.error || 'Request failed');
+  if(!data.ok) throw new Error((data.error || 'Request failed') + (data._build ? ` [script build ${data._build}]` : ' [no build tag — you are on a very old deployment, redeploy]'));
   return data;
 }
 async function sheetFetchAll(){
@@ -696,7 +696,7 @@ document.getElementById('breedSearchInput').addEventListener('input', (e) => {
 document.getElementById('sheetSettingsBtn').addEventListener('click', () => {
   document.getElementById('sheetUrlInput').value = sheetConfig.url || '';
   document.getElementById('sheetSecretInput').value = sheetConfig.secret || '';
-  document.getElementById('sheetDisconnect').style.display = sheetConfig.url ? 'inline-block' : 'none';
+  document.getElementById('sheetDisconnect').style.display = isSheetConfigured() ? 'inline-block' : 'none';
   const statusEl = document.getElementById('sheetTestStatus');
   statusEl.textContent = '';
   statusEl.className = 'sheet-status-line';

@@ -1096,6 +1096,21 @@
     margin:-4px 0 14px;
   }
   .sheet-redeploy-note b{ color:var(--text-muted); }
+  .sheet-advanced{ margin-top:4px; border-top:1px solid var(--border); padding-top:12px; }
+  .sheet-advanced summary{
+    cursor:pointer;
+    font-family:var(--font-display);
+    font-size:12px;
+    font-weight:600;
+    color:var(--text-dim);
+    list-style:none;
+  }
+  .sheet-advanced summary::-webkit-details-marker{ display:none; }
+  .sheet-advanced summary:hover{ color:var(--text-muted); }
+  .sheet-advanced summary::before{ content:'▸ '; }
+  .sheet-advanced[open] summary::before{ content:'▾ '; }
+  .sheet-advanced[open] summary{ margin-bottom:10px; }
+  .sheet-advanced #sheetUrlInput{ margin-bottom:4px; }
 
   /* ---------- global sheet-connect button (topbar, all views) ---------- */
   .sheet-btn{ max-width:230px; }

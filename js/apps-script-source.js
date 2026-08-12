@@ -664,7 +664,15 @@ function checkSecret_(secret) {
   return !!expected && secret === expected;
 }
 
+// Bumped on every change to this file. Stamped on every response (even
+// errors) so it's obvious from the outside whether a live deployment is
+// actually running this version — editing the code in the Apps Script
+// editor does NOT update what's live until you redeploy (see header
+// comment), which is easy to think you did and not have actually done.
+var SCRIPT_BUILD = '2026-08-12.4';
+
 function jsonOut_(obj) {
+  obj._build = SCRIPT_BUILD;
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
