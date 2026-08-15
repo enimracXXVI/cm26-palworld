@@ -17,18 +17,26 @@ const APPS_SCRIPT_SOURCE = `/**
  * name (not position), so reordering or adding your own columns never
  * breaks anything. A missing tab is created with sensible defaults;
  * an existing tab is never restructured, only ever read from — except
- * for two narrow, purpose-built writes: pals.discovered/imageUrl and
- * passiveSkills.unlocked (added as a new column if it isn't there yet,
- * appended at the end, nothing else touched).
+ * for a handful of narrow, purpose-built writes: pals.discovered/
+ * imageUrl/base/party and passiveSkills.unlocked. pals.base/party and
+ * passiveSkills.unlocked are added as new columns if they aren't there
+ * yet, appended at the end, nothing else touched.
  *
  *  - breedingLog:   id, createdAt, parentA_palId, parentA_sex,
  *                   parentA_passives, parentA_actives, parentB_palId,
  *                   parentB_sex, parentB_passives, parentB_actives,
  *                   offspring_palId, offspring_sex, offspring_passives,
  *                   offspring_actives, notes. Fully owned by the app.
- *  - pals:          id, palId, name, type, imageUrl, discovered.
- *                   'type' may be comma- or pipe-separated (a Sheets
- *                   multi-select dropdown auto-joins with commas).
+ *  - pals:          id, palId, name, type, imageUrl, discovered, base,
+ *                   party, plus 12 Work Suitability columns (Kindling,
+ *                   Watering, Planting, Generating Electricity,
+ *                   Handiwork, Gathering, Lumbering, Mining, Medicine
+ *                   Production, Cooling, Transporting, Farming) — left
+ *                   blank for you to fill in yourself; the app only
+ *                   adds and reads these columns, never writes values
+ *                   into them. 'type' may be comma- or pipe-separated
+ *                   (a Sheets multi-select dropdown auto-joins with
+ *                   commas).
  *  - partnerSkills: id, palId, palName, name, description — a
  *                   separate tab, one row per Pal.
  *  - activeSkills:  id, name, element, power, ct, exclusive,
@@ -638,8 +646,19 @@ var BREEDING_HEADERS = [
   'notes'
 ];
 
+// The 12 Work Suitability types from the base game, in the order the
+// game itself lists them. Left blank for every Pal — the app never
+// populates these, only adds the columns so they can be filled in by
+// hand from a source you trust.
+var WORK_SUITABILITY_COLUMNS = [
+  'Kindling', 'Watering', 'Planting', 'Generating Electricity', 'Handiwork',
+  'Gathering', 'Lumbering', 'Mining', 'Medicine Production', 'Cooling',
+  'Transporting', 'Farming'
+];
+
 var PALS_SHEET_NAME = 'pals';
-var PALS_HEADERS = ['id', 'palId', 'name', 'type', 'imageUrl', 'discovered'];
+var PALS_HEADERS = ['id', 'palId', 'name', 'type', 'imageUrl', 'discovered', 'base', 'party']
+  .concat(WORK_SUITABILITY_COLUMNS);
 
 var PARTNER_SKILLS_SHEET_NAME = 'partnerSkills';
 var PARTNER_SKILLS_HEADERS = ['id', 'palId', 'palName', 'name', 'description'];
@@ -670,7 +689,7 @@ function checkSecret_(secret) {
 // actually running this version — editing the code in the Apps Script
 // editor does NOT update what's live until you redeploy (see header
 // comment), which is easy to think you did and not have actually done.
-var SCRIPT_BUILD = '2026-08-12.7';
+var SCRIPT_BUILD = '2026-08-13.1';
 
 function jsonOut_(obj) {
   obj._build = SCRIPT_BUILD;
@@ -714,6 +733,23 @@ function padPalId_(n) {
 function normalizePalId_(v) {
   if (typeof v === 'number') return padPalId_(v);
   return String(v || '');
+}
+
+// Additively appends any of columnNames not already present in the
+// sheet's header row, in order, at the end — never renames, reorders,
+// or touches an existing column. Same pattern as the one-off
+// 'unlocked' migration in getPassiveSkillsSheet_, generalized so it
+// can add several columns at once.
+function ensureHeaderColumns_(sheet, columnNames) {
+  var lastCol = sheet.getLastColumn();
+  var header = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  columnNames.forEach(function (name) {
+    if (headerIndex_(header, name) === -1) {
+      lastCol++;
+      sheet.getRange(1, lastCol).setValue(name);
+      header.push(name);
+    }
+  });
 }
 
 function getSheetOrCreate_(name, headers, seedRows) {
@@ -796,8 +832,14 @@ function getPalsSheet_() {
   if (!sheet) {
     sheet = ss.insertSheet(PALS_SHEET_NAME);
     sheet.appendRow(PALS_HEADERS);
-    var rows = PALS_SEED.map(function (p, i) { return [i + 1, p[0], p[3], p[4].split('|').join(', '), '', '']; });
+    var rows = PALS_SEED.map(function (p, i) {
+      var row = [i + 1, p[0], p[3], p[4].split('|').join(', '), '', ''];
+      while (row.length < PALS_HEADERS.length) row.push('');
+      return row;
+    });
     sheet.getRange(2, 1, rows.length, PALS_HEADERS.length).setValues(rows);
+  } else {
+    ensureHeaderColumns_(sheet, ['base', 'party'].concat(WORK_SUITABILITY_COLUMNS));
   }
   return sheet;
 }
@@ -809,17 +851,28 @@ function readPals_() {
   var header = values[0];
   var cId = headerIndex_(header, 'palId'), cName = headerIndex_(header, 'name'),
     cType = headerIndex_(header, 'type'), cImg = headerIndex_(header, 'imageUrl'),
-    cDisc = headerIndex_(header, 'discovered');
+    cDisc = headerIndex_(header, 'discovered'), cBase = headerIndex_(header, 'base'),
+    cParty = headerIndex_(header, 'party');
+  var workCols = WORK_SUITABILITY_COLUMNS.map(function (name) {
+    return { name: name, idx: headerIndex_(header, name) };
+  });
   var out = [];
   for (var i = 1; i < values.length; i++) {
     var row = values[i];
     if (cId === -1 || !row[cId]) continue;
+    var workSuitability = {};
+    workCols.forEach(function (c) {
+      if (c.idx !== -1 && row[c.idx] !== '') workSuitability[c.name] = row[c.idx];
+    });
     out.push({
       id: normalizePalId_(row[cId]),
       name: cName !== -1 ? String(row[cName] || '') : '',
       types: cType !== -1 ? splitMulti_(row[cType]) : [],
       imageUrl: cImg !== -1 ? String(row[cImg] || '') : '',
-      discovered: cDisc !== -1 ? isTruthyCell_(row[cDisc]) : false
+      discovered: cDisc !== -1 ? isTruthyCell_(row[cDisc]) : false,
+      base: cBase !== -1 ? isTruthyCell_(row[cBase]) : false,
+      party: cParty !== -1 ? isTruthyCell_(row[cParty]) : false,
+      workSuitability: workSuitability
     });
   }
   return out;
@@ -850,18 +903,23 @@ function setPalField_(palId, fieldName, value) {
 
 function setDiscovered_(palId, discovered) { return setPalField_(palId, 'discovered', discovered ? 'Yes' : ''); }
 function setPalImageUrl_(palId, imageUrl) { return setPalField_(palId, 'imageUrl', imageUrl || ''); }
+function setPalBase_(palId, inBase) { return setPalField_(palId, 'base', inBase ? 'Yes' : ''); }
+function setPalParty_(palId, inParty) { return setPalField_(palId, 'party', inParty ? 'Yes' : ''); }
 
-function clearAllDiscovered_() {
+function clearPalsColumn_(colName) {
   var sheet = getPalsSheet_();
   var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  var discCol = headerIndex_(header, 'discovered');
-  if (discCol === -1) return;
+  var col = headerIndex_(header, colName);
+  if (col === -1) return;
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return;
   var blanks = [];
   for (var i = 0; i < lastRow - 1; i++) blanks.push(['']);
-  sheet.getRange(2, discCol + 1, blanks.length, 1).setValues(blanks);
+  sheet.getRange(2, col + 1, blanks.length, 1).setValues(blanks);
 }
+function clearAllDiscovered_() { clearPalsColumn_('discovered'); }
+function clearAllBase_() { clearPalsColumn_('base'); }
+function clearAllParty_() { clearPalsColumn_('party'); }
 
 /* ============================================================
    partnerSkills — its own tab: id, palId, palName, name, description
@@ -1077,6 +1135,12 @@ function doPost(e) {
     if (body.action === 'setDiscoveredBatch') { (body.payload.palIds || []).forEach(function (id) { setDiscovered_(id, true); }); return jsonOut_({ ok: true }); }
     if (body.action === 'clearDiscovered') { clearAllDiscovered_(); return jsonOut_({ ok: true }); }
     if (body.action === 'setPalImageUrl') { setPalImageUrl_(body.payload.palId, body.payload.imageUrl); return jsonOut_({ ok: true }); }
+    if (body.action === 'setBase') { setPalBase_(body.payload.palId, body.payload.base); return jsonOut_({ ok: true }); }
+    if (body.action === 'setBaseBatch') { (body.payload.palIds || []).forEach(function (id) { setPalBase_(id, true); }); return jsonOut_({ ok: true }); }
+    if (body.action === 'clearBase') { clearAllBase_(); return jsonOut_({ ok: true }); }
+    if (body.action === 'setParty') { setPalParty_(body.payload.palId, body.payload.party); return jsonOut_({ ok: true }); }
+    if (body.action === 'setPartyBatch') { (body.payload.palIds || []).forEach(function (id) { setPalParty_(id, true); }); return jsonOut_({ ok: true }); }
+    if (body.action === 'clearParty') { clearAllParty_(); return jsonOut_({ ok: true }); }
     if (body.action === 'setPassiveUnlocked') { setPassiveUnlocked_(body.payload.name, body.payload.unlocked); return jsonOut_({ ok: true }); }
     if (body.action === 'setPassiveUnlockedBatch') { (body.payload.names || []).forEach(function (n) { setPassiveUnlocked_(n, true); }); return jsonOut_({ ok: true }); }
     if (body.action === 'clearPassivesUnlocked') { clearAllPassivesUnlocked_(); return jsonOut_({ ok: true }); }

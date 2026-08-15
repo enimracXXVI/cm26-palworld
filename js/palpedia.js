@@ -263,13 +263,27 @@ document.getElementById('grid').addEventListener('click', (e) => {
     if(isSheetConfigured()){
       sheetSend('setDiscovered', { palId:id, discovered:now })
         .catch(() => showToast('Could not update this Pal’s discovered status on your Google Sheet.', true));
+      if(!now){
+        sheetSend('setBase', { palId:id, base:false }).catch(() => {});
+        sheetSend('setParty', { palId:id, party:false }).catch(() => {});
+      }
     }
   } else if(action === 'base'){
     if(!state.discovered[id]) return;
-    state.base[id] = !state.base[id];
+    const now = !state.base[id];
+    state.base[id] = now;
+    if(isSheetConfigured()){
+      sheetSend('setBase', { palId:id, base:now })
+        .catch(() => showToast('Could not update this Pal’s Base status on your Google Sheet.', true));
+    }
   } else if(action === 'party'){
     if(!state.discovered[id]) return;
-    state.party[id] = !state.party[id];
+    const now = !state.party[id];
+    state.party[id] = now;
+    if(isSheetConfigured()){
+      sheetSend('setParty', { palId:id, party:now })
+        .catch(() => showToast('Could not update this Pal’s Party status on your Google Sheet.', true));
+    }
   } else if(action === 'image'){
     openImageModal(id);
     return; // don't persist/re-render yet — wait for modal save
@@ -386,6 +400,10 @@ document.getElementById('resetConfirm').addEventListener('click', async () => {
   if(isSheetConfigured()){
     try{ await sheetSend('clearDiscovered', {}); }
     catch(e){ showToast('Reset locally, but could not clear "Discovered" on your Google Sheet — it will re-sync on next connect.', true); }
+    try{ await sheetSend('clearBase', {}); }
+    catch(e){ showToast('Reset locally, but could not clear "Base" on your Google Sheet — it will re-sync on next connect.', true); }
+    try{ await sheetSend('clearParty', {}); }
+    catch(e){ showToast('Reset locally, but could not clear "Party" on your Google Sheet — it will re-sync on next connect.', true); }
     try{ await sheetSend('clearPassivesUnlocked', {}); }
     catch(e){ showToast('Reset locally, but could not clear passive unlocks on your Google Sheet — it will re-sync on next connect.', true); }
   }

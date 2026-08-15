@@ -45,24 +45,35 @@ Every read and write looks columns up **by name**, never by position —
 reorder your columns, add your own extra ones, whatever you like, and
 the app keeps working. A tab that doesn't exist yet is created with
 sensible defaults; a tab that already exists is **never** restructured
-or renamed by this script, with two narrow, purpose-built exceptions
-described below (`pals.discovered`/`imageUrl`, `passiveSkills.unlocked`).
+or renamed by this script, with a handful of narrow, purpose-built
+exceptions described below (`pals.discovered`/`imageUrl`/`base`/
+`party`, `passiveSkills.unlocked`).
 
 - **breedingLog** — `id, createdAt, parentA_palId, parentA_sex,
   parentA_passives, parentA_actives, parentB_palId, parentB_sex,
   parentB_passives, parentB_actives, offspring_palId, offspring_sex,
   offspring_passives, offspring_actives, notes`. Fully owned by the
   app; don't hand-edit it.
-- **pals** — `id, palId, name, type, imageUrl, discovered`. `type` may
-  be comma- or pipe-separated. The app writes `imageUrl` (when you add
-  a picture through the app itself, not just when you paste one into
-  the sheet) and `discovered` (when you tick a Pal off — any of
-  `Yes`/`TRUE`/`1`/`x` counts if you'd rather edit it by hand).
-  Discovery syncs both ways: the sheet's discovered Pals merge into
-  your local progress on every connect (never un-discovering anything
-  locally), and anything discovered locally but missing from the sheet
-  gets pushed up. "Reset Palpedia progress" in the app clears this
-  column too.
+- **pals** — `id, palId, name, type, imageUrl, discovered, base,
+  party`, plus 12 Work Suitability columns: `Kindling, Watering,
+  Planting, Generating Electricity, Handiwork, Gathering, Lumbering,
+  Mining, Medicine Production, Cooling, Transporting, Farming`. `type`
+  may be comma- or pipe-separated. The app writes `imageUrl` (when you
+  add a picture through the app itself, not just when you paste one
+  into the sheet), `discovered` (when you tick a Pal off), and `base`/
+  `party` (when you toggle those on a Pal's card) — any of
+  `Yes`/`TRUE`/`1`/`x` counts for any of these if you'd rather edit by
+  hand. All three sync both ways: the sheet's set merges into your
+  local progress on every connect (never un-assigning anything
+  locally), and anything set locally but missing from the sheet gets
+  pushed up. "Reset Palpedia progress" in the app clears all three
+  columns, and un-discovering a Pal also clears its `base`/`party`.
+  `base`/`party` and the 12 Work Suitability columns are added
+  automatically (appended, nothing else touched) the first time the
+  app connects to a `pals` tab that doesn't have them yet — same as
+  the `passiveSkills.unlocked` migration below. The app never writes
+  into the Work Suitability columns itself; they're there for you to
+  fill in from a source you trust.
 - **partnerSkills** — its own tab: `id, palId, palName, name,
   description`. One row per Pal, joined to `pals` by `palId`.
 - **activeSkills** — `id, name, element, power, ct, exclusive,

@@ -96,9 +96,9 @@
     line-height:1.5;
   }
 
-  /* ---------- filters toggle (mobile) ---------- */
+  /* ---------- filters toggle ---------- */
   .filters-toggle{
-    display:none;
+    display:flex;
     align-items:center;
     gap:7px;
     background:var(--panel);
@@ -175,13 +175,14 @@
   .gauge-stats .b-dot{color:var(--ok);}
   .gauge-stats .p-dot{color:var(--accent);}
 
-  /* ---------- controls ---------- */
+  /* ---------- controls (collapsed by default, opened via filters-toggle) ---------- */
   .controls{
-    display:flex;
+    display:none;
     flex-direction:column;
     gap:10px;
     margin-top:16px;
   }
+  .controls.open{ display:flex; }
   .row1{
     display:flex;
     gap:10px;
@@ -1159,11 +1160,6 @@
 
   /* below this width, the filter controls collapse behind a toggle so the
      sticky header stays short instead of permanently eating the viewport */
-  @media (max-width:860px){
-    .filters-toggle{ display:flex; }
-    .controls{ display:none; }
-    .controls.open{ display:flex; }
-  }
 
   @media (max-width:640px){
     header.top{ padding:12px 0 10px; }
@@ -1213,7 +1209,13 @@
     .type-row{ min-height:0; gap:3px; }
     .type-pill{ font-size:7.5px; padding:2px 5px; }
     .type-icon{ width:14px; height:14px; border-radius:4px; }
-    .partner-block{ display:none; }
+    /* keep the partner skill visible, but as a single truncated line —
+       no room for the label/description at this card size. Hidden
+       entirely for locked/no-data cards (nothing worth showing). */
+    .partner-block{ padding:3px 6px; min-height:0; }
+    .partner-block:has(.partner-empty){ display:none; }
+    .partner-label, .partner-desc{ display:none; }
+    .partner-name{ font-size:8.5px; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .role-row{ gap:4px; padding-top:0; }
     .role-btn{ font-size:0; padding:6px 2px; gap:0; }
   }

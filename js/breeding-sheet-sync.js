@@ -42,6 +42,7 @@ function isSheetConfigured(){
 let palImageDb = {};
 let palPartnerSkillDb = {};
 let elementImageDb = {};
+let palWorkSuitabilityDb = {};
 let activeSkillNames = [];
 // Both start as a working copy of the hardcoded PASSIVE_SKILLS data
 // (mutated in place on sync — see applySheetData), so the app is fully
@@ -59,6 +60,7 @@ function loadSheetDataCache(){
     palImageDb = cached.palImageDb || {};
     palPartnerSkillDb = cached.palPartnerSkillDb || {};
     elementImageDb = cached.elementImageDb || {};
+    palWorkSuitabilityDb = cached.palWorkSuitabilityDb || {};
     (cached.activeSkillNames || []).forEach(n => activeSkillNames.push(n));
     if(cached.passiveSkillsData && cached.passiveSkillsData.length){
       passiveSkillsData.length = 0;
@@ -69,7 +71,7 @@ function loadSheetDataCache(){
   }catch(e){}
 }
 function persistSheetDataCache(){
-  try{ localStorage.setItem(SHEET_DATA_CACHE_KEY, JSON.stringify({ palImageDb, palPartnerSkillDb, elementImageDb, activeSkillNames, passiveSkillsData })); }catch(e){}
+  try{ localStorage.setItem(SHEET_DATA_CACHE_KEY, JSON.stringify({ palImageDb, palPartnerSkillDb, elementImageDb, palWorkSuitabilityDb, activeSkillNames, passiveSkillsData })); }catch(e){}
 }
 let breedingEntries = [];
 let sheetConfig = { url:'', secret:'' };
@@ -177,10 +179,16 @@ async function applySheetData(data){
   persistBreedingLocal();
 
   palImageDb = {};
+  palWorkSuitabilityDb = {};
   const sheetDiscoveredIds = [];
+  const sheetBaseIds = [];
+  const sheetPartyIds = [];
   (data.pals || []).forEach(p => {
     if(p.imageUrl) palImageDb[p.id] = p.imageUrl;
     if(p.discovered) sheetDiscoveredIds.push(p.id);
+    if(p.base) sheetBaseIds.push(p.id);
+    if(p.party) sheetPartyIds.push(p.id);
+    if(p.workSuitability && Object.keys(p.workSuitability).length) palWorkSuitabilityDb[p.id] = p.workSuitability;
   });
 
   // partnerSkills is its own tab, keyed by palId — join it in here.
@@ -207,14 +215,20 @@ async function applySheetData(data){
     passiveSkillsData.forEach(p => passiveSkillNames.push(p[0]));
   }
 
-  // Discovery and passive-unlock status both sync the same way: the
-  // sheet's set merges into local state (union — a sheet read never
-  // un-discovers/re-locks something you've already ticked off here),
-  // and anything true locally but still missing from the sheet gets
-  // pushed up in one batch call.
+  // Discovery, base, party, and passive-unlock status all sync the
+  // same way: the sheet's set merges into local state (union — a
+  // sheet read never un-discovers/un-assigns/re-locks something
+  // you've already set here), and anything true locally but still
+  // missing from the sheet gets pushed up in one batch call.
   let localChanged = false;
   sheetDiscoveredIds.forEach(id => {
     if(!state.discovered[id]){ state.discovered[id] = true; localChanged = true; }
+  });
+  sheetBaseIds.forEach(id => {
+    if(!state.base[id]){ state.base[id] = true; localChanged = true; }
+  });
+  sheetPartyIds.forEach(id => {
+    if(!state.party[id]){ state.party[id] = true; localChanged = true; }
   });
 
   const sheetUnlockedNames = sheetPassives.filter(p => p.unlocked).map(p => p.name);
@@ -227,6 +241,20 @@ async function applySheetData(data){
   const palIdsToPush = Object.keys(state.discovered).filter(id => state.discovered[id] && !sheetDiscoveredSet.has(id));
   if(palIdsToPush.length){
     try{ await sheetSend('setDiscoveredBatch', { palIds: palIdsToPush }); }
+    catch(e){ /* best effort — next sync will retry */ }
+  }
+
+  const sheetBaseSet = new Set(sheetBaseIds);
+  const baseIdsToPush = Object.keys(state.base).filter(id => state.base[id] && !sheetBaseSet.has(id));
+  if(baseIdsToPush.length){
+    try{ await sheetSend('setBaseBatch', { palIds: baseIdsToPush }); }
+    catch(e){ /* best effort — next sync will retry */ }
+  }
+
+  const sheetPartySet = new Set(sheetPartyIds);
+  const partyIdsToPush = Object.keys(state.party).filter(id => state.party[id] && !sheetPartySet.has(id));
+  if(partyIdsToPush.length){
+    try{ await sheetSend('setPartyBatch', { palIds: partyIdsToPush }); }
     catch(e){ /* best effort — next sync will retry */ }
   }
 

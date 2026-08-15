@@ -7,15 +7,18 @@
 const DB_SCHEMA = [
   {
     tab: 'pals',
-    purpose: 'One row per Pal. Seeded once from the app’s built-in Pal list the first time it connects to an empty tab; after that you own the rows, the app only ever updates two columns on them.',
+    purpose: 'One row per Pal. Seeded once from the app’s built-in Pal list the first time it connects to an empty tab; after that you own the rows. base/party were added additively (appended, nothing else touched) the first time the app connected to a tab missing them — same for the 12 Work Suitability columns, which the app never writes to itself.',
     keyedBy: 'palId',
     columns: [
       { name: 'id', notes: 'Row id. Any unique value — not the same as palId.' },
-      { name: 'palId', notes: 'Zero-padded Palpedia number as text (e.g. "001"). The key every other tab joins on. Kept text-formatted and self-repairing so Sheets can’t silently coerce it to a number.', written: true },
+      { name: 'palId', notes: 'Palpedia number, as text ("001") or a real number displayed zero-padded via a custom format — either works, normalized on read. Never rewritten by the app.' },
       { name: 'name', notes: 'Pal name.' },
       { name: 'type', notes: 'Type code(s), comma- or pipe-separated (NE, FI, WA, GR, EL, IC, GD, DA, DR).' },
       { name: 'imageUrl', notes: 'Picture URL for the card. Written when you add/change a picture in the app.', written: true },
-      { name: 'discovered', notes: '"Yes" or blank. Written when you tick a Pal off in the app, and cleared by Reset Palpedia progress.', written: true }
+      { name: 'discovered', notes: '"Yes" or blank. Written when you tick a Pal off in the app, and cleared by Reset Palpedia progress.', written: true },
+      { name: 'base', notes: '"Yes" or blank. Written when you toggle a Pal\'s Base assignment, and cleared by Reset Palpedia progress or un-discovering the Pal.', written: true },
+      { name: 'party', notes: '"Yes" or blank. Written when you toggle a Pal\'s Party assignment, and cleared by Reset Palpedia progress or un-discovering the Pal.', written: true },
+      { name: 'Kindling, Watering, Planting, Generating Electricity, Handiwork, Gathering, Lumbering, Mining, Medicine Production, Cooling, Transporting, Farming', notes: 'The 12 Work Suitability levels. Added blank for you to fill in from a source you trust — the app only reads these, it never writes a value into them.' }
     ]
   },
   {
