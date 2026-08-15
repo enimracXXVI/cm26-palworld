@@ -245,7 +245,7 @@ function checkSecret_(secret) {
 // actually running this version — editing the code in the Apps Script
 // editor does NOT update what's live until you redeploy (see header
 // comment), which is easy to think you did and not have actually done.
-var SCRIPT_BUILD = '2026-08-13.3';
+var SCRIPT_BUILD = '2026-08-13.4';
 
 function jsonOut_(obj) {
   obj._build = SCRIPT_BUILD;
@@ -308,9 +308,27 @@ function ensureHeaderColumns_(sheet, columnNames) {
   });
 }
 
+// getSheetByName is case-sensitive, and a tab name that doesn't match
+// byte-for-byte (e.g. you created "WorkSuitability" while this file
+// expects "workSuitability") would otherwise silently auto-create a
+// second, empty tab under the exact-case name instead of using the
+// one you already made and populated — exactly the kind of surprise
+// duplicate tab that's bitten this project before. Every tab lookup
+// goes through this instead of a raw getSheetByName.
+function findSheet_(ss, name) {
+  var exact = ss.getSheetByName(name);
+  if (exact) return exact;
+  var lower = name.toLowerCase();
+  var sheets = ss.getSheets();
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].getName().toLowerCase() === lower) return sheets[i];
+  }
+  return null;
+}
+
 function getSheetOrCreate_(name, headers, seedRows) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(name);
+  var sheet = findSheet_(ss, name);
   if (!sheet) {
     sheet = ss.insertSheet(name);
     sheet.appendRow(headers);
@@ -384,7 +402,7 @@ function findRowIndexById_(sheet, header, id) {
    ============================================================ */
 function getPalsSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(PALS_SHEET_NAME);
+  var sheet = findSheet_(ss, PALS_SHEET_NAME);
   if (!sheet) {
     sheet = ss.insertSheet(PALS_SHEET_NAME);
     sheet.appendRow(PALS_HEADERS);
@@ -501,7 +519,7 @@ function clearAllParty_() { clearPalsColumn_('party'); }
    ============================================================ */
 function getPartnerSkillsSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(PARTNER_SKILLS_SHEET_NAME);
+  var sheet = findSheet_(ss, PARTNER_SKILLS_SHEET_NAME);
   if (!sheet) {
     sheet = ss.insertSheet(PARTNER_SKILLS_SHEET_NAME);
     sheet.appendRow(PARTNER_SKILLS_HEADERS);
@@ -617,7 +635,7 @@ function readWorkSuitability_() {
    ============================================================ */
 function getPassiveSkillsSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(PASSIVE_SKILLS_SHEET_NAME);
+  var sheet = findSheet_(ss, PASSIVE_SKILLS_SHEET_NAME);
   if (!sheet) {
     sheet = ss.insertSheet(PASSIVE_SKILLS_SHEET_NAME);
     sheet.appendRow(PASSIVE_SKILLS_HEADERS);

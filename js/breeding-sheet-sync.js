@@ -205,7 +205,7 @@ async function applySheetData(data){
   (data.elements || []).forEach(t => { if(t.imageUrl) elementImageDb[t.code] = t.imageUrl; });
 
   workSuitabilityImageDb = {};
-  (data.workSuitability || []).forEach(w => { if(w.imageUrl) workSuitabilityImageDb[w.name] = w.imageUrl; });
+  (data.workSuitability || []).forEach(w => { if(w.imageUrl) workSuitabilityImageDb[normKey_(w.name)] = w.imageUrl; });
 
   const names = (data.activeSkills || []).map(s => s.name).filter(Boolean);
   activeSkillNames.length = 0;

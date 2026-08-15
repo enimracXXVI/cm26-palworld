@@ -128,6 +128,14 @@ function palSheetInfo_(id){
   return p ? { name: p[3], type: p[4].join('|') } : {};
 }
 
+// Case/whitespace-insensitive so a workSuitability.name that doesn't
+// match a pals column header byte-for-byte ("handiwork" vs
+// "Handiwork") still joins up to its icon instead of silently
+// falling back to the text pill.
+function normKey_(s){
+  return String(s || '').trim().toLowerCase();
+}
+
 function cardTemplate(p){
   const id = p[0], num = p[1], suffix = p[2], name = p[3], types = p[4];
   const discovered = !!state.discovered[id];
@@ -170,7 +178,7 @@ function cardTemplate(p){
     if (entries.length) {
       suitabilityHtml = `<div class="suitability-row">${entries.map(k => {
         const level = levels[k];
-        const icon = workSuitabilityImageDb[k];
+        const icon = workSuitabilityImageDb[normKey_(k)];
         return icon
           ? `<span class="suitability-item" title="${escapeHtml(k)}: ${escapeHtml(level)}"><img class="suitability-icon" src="${escapeHtml(icon)}" alt="${escapeHtml(k)}" loading="lazy"><span class="suitability-level">${escapeHtml(level)}</span></span>`
           : `<span class="suitability-pill" title="${escapeHtml(k)}">${escapeHtml(k)} ${escapeHtml(level)}</span>`;
@@ -554,6 +562,7 @@ document.getElementById('imageRemove').addEventListener('click', async () => {
    VIEW TABS (Palpedia <-> Breeding Log)
    ============================================================ */
 function setView(view){
+  window.scrollTo(0, 0);
   document.body.dataset.view = view;
   document.querySelectorAll('#viewTabs button[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view));
   const subEls = { palpedia: 'subPalpedia', passives: 'subPassives', breeding: 'subBreeding', styleguide: 'subStyleguide', schema: 'subSchema' };
