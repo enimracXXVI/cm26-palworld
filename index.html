@@ -47,12 +47,14 @@
 
     <div class="seg view-tabs" id="viewTabs">
       <button data-view="palpedia" class="active" type="button">Palpedia</button>
+      <button data-view="passives" type="button">Passive Skills</button>
       <button data-view="breeding" type="button">Breeding Log</button>
       <button data-view="styleguide" type="button">Style Guide</button>
       <button data-view="schema" type="button">DB Schema</button>
     </div>
 
     <p class="sub" id="subPalpedia">Every catalogued Pal, in Palpedia order. Tick a Pal off once you've caught it — until then, its entry stays sealed.</p>
+    <p class="sub" id="subPassives" style="display:none;">Every named passive skill in the game — not tied to any single Pal. Tap a skill to unlock its effect.</p>
     <p class="sub" id="subBreeding" style="display:none;">Log the Pals you bred, what each parent was carrying, and what came out the other side. Optionally synced to a Google Sheet you control.</p>
     <p class="sub" id="subStyleguide" style="display:none;">The colors, type, and components this app is built from — reads live from style.css, so it never drifts.</p>
     <p class="sub" id="subSchema" style="display:none;">The Google Sheet tabs, columns, and relationships the app reads and writes — mirrors apps-script/Code.gs.</p>
@@ -76,10 +78,6 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18M5 4h13l-2.5 4L18 12H5"></path></svg>
           Party
         </button>
-        <button class="chip-toggle" id="passivesBtn" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v4M12 16h.01"></path></svg>
-          Passive Skills
-        </button>
       </div>
       <div class="row2" id="typeRow"></div>
     </div>
@@ -102,6 +100,16 @@
       <div>Loading your Palpedia progress…</div>
     </div>
     <div id="grid" style="display:none;"></div>
+    <div id="passivesView">
+      <div class="passives-toolbar">
+        <div class="search-box passives-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input id="passiveSearch" type="text" placeholder="Search passive skills…" autocomplete="off">
+        </div>
+        <span class="passives-count" id="passivesUnlockedCount"></span>
+      </div>
+      <div class="passives-list" id="passivesList"></div>
+    </div>
     <div id="breedingView">
       <div id="breedEntries" class="breed-list"></div>
     </div>
@@ -123,25 +131,6 @@
       <button id="resetCancel">Cancel</button>
       <button class="confirm" id="resetConfirm">Reset everything</button>
     </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="passivesModal" style="display:none;">
-  <div class="modal passives-modal">
-    <div class="passives-head">
-      <div>
-        <h3>Passive Skills</h3>
-        <p class="passives-sub">Every named passive skill in the game — not tied to any single Pal. Tap a skill to unlock its effect. <b id="passivesUnlockedCount"></b></p>
-      </div>
-      <button class="close-x" id="passivesClose" aria-label="Close">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      </button>
-    </div>
-    <div class="search-box passives-search">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-      <input id="passiveSearch" type="text" placeholder="Search passive skills…" autocomplete="off">
-    </div>
-    <div class="passives-list" id="passivesList"></div>
   </div>
 </div>
 

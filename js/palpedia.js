@@ -352,14 +352,6 @@ function renderPassives(filterText){
   }).join('');
 }
 
-const passivesModal = document.getElementById('passivesModal');
-document.getElementById('passivesBtn').addEventListener('click', () => {
-  passivesModal.style.display = 'flex';
-  renderPassives(document.getElementById('passiveSearch').value);
-  document.getElementById('passiveSearch').focus();
-});
-document.getElementById('passivesClose').addEventListener('click', () => { passivesModal.style.display = 'none'; });
-passivesModal.addEventListener('click', (e) => { if(e.target === passivesModal) passivesModal.style.display = 'none'; });
 document.getElementById('passiveSearch').addEventListener('input', (e) => renderPassives(e.target.value));
 document.getElementById('passivesList').addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-action="unlock-passive"]');
@@ -477,10 +469,11 @@ document.getElementById('imageRemove').addEventListener('click', async () => {
 function setView(view){
   document.body.dataset.view = view;
   document.querySelectorAll('#viewTabs button[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view));
-  const subEls = { palpedia: 'subPalpedia', breeding: 'subBreeding', styleguide: 'subStyleguide', schema: 'subSchema' };
+  const subEls = { palpedia: 'subPalpedia', passives: 'subPassives', breeding: 'subBreeding', styleguide: 'subStyleguide', schema: 'subSchema' };
   Object.keys(subEls).forEach(key => {
     document.getElementById(subEls[key]).style.display = key === view ? '' : 'none';
   });
+  if(view === 'passives') renderPassives(document.getElementById('passiveSearch').value);
   if(view === 'breeding') renderBreedEntries();
   if(view === 'styleguide' && !styleGuideRendered){ styleGuideRendered = true; renderStyleGuide(); }
   if(view === 'schema') renderSchema();
