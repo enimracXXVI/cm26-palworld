@@ -49,7 +49,7 @@ let activeSkillNames = [];
 // usable before ever connecting a sheet, and everything reading from
 // these two arrays (renderPassives, the breeding form's tag-input
 // suggestions) picks up sheet edits live without rebuilding anything.
-let passiveSkillsData = PASSIVE_SKILLS.map(p => [p[0], p[1], p[2], p[3].slice()]);
+let passiveSkillsData = PASSIVE_SKILLS.map(p => [p[0], p[1], p[2], p[3].slice(), '']);
 let passiveSkillNames = PASSIVE_SKILLS.map(p => p[0]);
 
 function loadSheetDataCache(){
@@ -210,7 +210,7 @@ async function applySheetData(data){
   const sheetPassives = (data.passiveSkills || []).filter(p => p.name);
   if(sheetPassives.length){
     passiveSkillsData.length = 0;
-    sheetPassives.forEach(p => passiveSkillsData.push([p.name, p.rank, p.surgery, p.effects || []]));
+    sheetPassives.forEach(p => passiveSkillsData.push([p.name, p.rank, p.surgery, p.effects || [], p.category || '']));
     passiveSkillNames.length = 0;
     passiveSkillsData.forEach(p => passiveSkillNames.push(p[0]));
   }

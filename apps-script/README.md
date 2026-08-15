@@ -57,13 +57,16 @@ exceptions described below (`pals.discovered`/`imageUrl`/`base`/
 - **pals** — `id, palId, name, type, imageUrl, discovered, base,
   party`, plus 12 Work Suitability columns: `Kindling, Watering,
   Planting, Generating Electricity, Handiwork, Gathering, Lumbering,
-  Mining, Medicine Production, Cooling, Transporting, Farming`. `type`
-  may be comma- or pipe-separated. The app writes `imageUrl` (when you
-  add a picture through the app itself, not just when you paste one
-  into the sheet), `discovered` (when you tick a Pal off), and `base`/
-  `party` (when you toggle those on a Pal's card) — any of
-  `Yes`/`TRUE`/`1`/`x` counts for any of these if you'd rather edit by
-  hand. All three sync both ways: the sheet's set merges into your
+  Mining, Medicine Production, Cooling, Transporting, Farming`. **Not
+  pre-seeded** — a row appears the first time you interact with that
+  Pal (discover it, assign Base/Party, add a picture), pre-filled with
+  its name/type at that moment. `type` is pipe-separated when the app
+  writes it. The app writes `imageUrl` (when you add a picture through
+  the app itself, not just when you paste one into the sheet),
+  `discovered` (when you tick a Pal off), and `base`/`party` (when you
+  toggle those on a Pal's card) as real `TRUE`/`FALSE` boolean values —
+  any of `TRUE`/`Yes`/`1`/`x` still counts as true if you'd rather edit
+  by hand. All three sync both ways: the sheet's set merges into your
   local progress on every connect (never un-assigning anything
   locally), and anything set locally but missing from the sheet gets
   pushed up. "Reset Palpedia progress" in the app clears all three
@@ -75,7 +78,8 @@ exceptions described below (`pals.discovered`/`imageUrl`/`base`/
   into the Work Suitability columns itself; they're there for you to
   fill in from a source you trust.
 - **partnerSkills** — its own tab: `id, palId, palName, name,
-  description`. One row per Pal, joined to `pals` by `palId`.
+  description`. One row per Pal, joined to `pals` by `palId`. Not
+  pre-seeded — populate it yourself.
 - **activeSkills** — `id, name, element, power, ct, exclusive,
   description, notes`. You populate this yourself — only `name` is
   required for a row to be used. Once there are rows here, the
@@ -85,16 +89,24 @@ exceptions described below (`pals.discovered`/`imageUrl`/`base`/
   Paste a picture URL per type and the app shows that image instead of
   a colored pill wherever a Pal's types are listed (both on cards and
   in the type filter chips).
-- **passiveSkills** — `id, name, rank, surgery, effects, unlocked`.
-  `effects` may be comma- or pipe-separated. `unlocked` is the one
-  column this script adds to an existing tab if it's missing —
-  appended at the end, nothing else touched — because the app tracks
-  which passives you've discovered here too, the same way it tracks
-  `pals.discovered`. The Passive Skills modal and the Breeding Log's
-  passive-skill suggestions both read this whole tab live, so a
-  rename, correction, or added row shows up on the next sync — a
-  locked (not-yet-unlocked) passive shows only its name and rank, not
-  its effects or whether it needs Surgery.
+- **passiveSkills** — `id, name, rank, surgery, effects, category,
+  unlocked`. `effects` may be comma- or pipe-separated; `surgery`/
+  `unlocked` are real `TRUE`/`FALSE` boolean values (`TRUE`/`Yes`/`1`/
+  `x` all count as true if you edit by hand). `category` is left blank
+  — there's no official Palworld categorization to seed it with, so
+  it's there for you to fill in however you'd like to group/filter
+  skills (Attack, Defense, Work, ...). The Passive Skills tab in the
+  app reads whatever distinct category values actually exist and shows
+  them as filter chips automatically — no code change needed, the
+  filter row just doesn't appear until the column has something in it.
+  `category` and `unlocked` are the two columns this script adds to an
+  existing tab if they're missing — appended at the end, nothing else
+  touched — because the app tracks which passives you've discovered
+  here too, the same way it tracks `pals.discovered`. The Passive
+  Skills tab and the Breeding Log's passive-skill suggestions both read
+  this whole tab live, so a rename, correction, or added row shows up
+  on the next sync — a locked (not-yet-unlocked) passive shows
+  only its name and rank, not its effects or whether it needs Surgery.
 
 ### Multi-value columns: comma vs. pipe
 
@@ -106,15 +118,6 @@ any ambiguity with commas that might appear inside free text. Every
 read in this script accepts **either** separator, so it doesn't matter
 which one produced a given cell — you don't need to standardize your
 existing columns.
-
-## Known data gap
-
-`partnerSkills` only has real data through Pal `109B`; palId `110`
-onward are present as rows but with blank `name`/`description`. We
-don't have a verified source for the rest and didn't want to guess and
-have the app show made-up game data as fact — paste in real data for
-those rows yourself if you find a source you trust, and the app will
-pick it up automatically (no code change needed).
 
 ## Notes
 

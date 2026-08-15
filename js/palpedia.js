@@ -120,6 +120,14 @@ function matchesFilters(p){
   return true;
 }
 
+// Looked up so a first-ever sheet write for a Pal (discover/base/
+// party/image) can pre-fill its name/type on the row the server
+// creates, instead of leaving a bare id sitting there.
+function palSheetInfo_(id){
+  const p = PALS.find(x => x[0] === id);
+  return p ? { name: p[3], type: p[4].join('|') } : {};
+}
+
 function cardTemplate(p){
   const id = p[0], num = p[1], suffix = p[2], name = p[3], types = p[4];
   const discovered = !!state.discovered[id];
@@ -156,15 +164,16 @@ function cardTemplate(p){
     const imgUrl = state.images[id] || palImageDb[id];
     imageHtml = imgUrl
       ? `<div class="pal-image-box">
-          <img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(name)}" loading="lazy" onerror="this.closest('.pal-image-box').classList.add('empty');this.closest('.pal-image-box').innerHTML='<span>Picture failed to load</span>'">
+          <img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(name)}" loading="lazy" onerror="this.closest('.pal-image-box').classList.add('empty');this.closest('.pal-image-box').innerHTML='<span>!</span>'">
           <button class="image-edit-btn" data-action="image" title="Change picture">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
           </button>
         </div>`
-      : `<button class="pal-image-box empty" data-action="image" type="button">
+      : `<button class="pal-image-box empty" data-action="image" type="button" title="Add a picture">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-5-5L5 21"></path></svg>
-          <span>Add a picture</span>
         </button>`;
+  } else {
+    imageHtml = `<div class="pal-image-box empty locked"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v4M12 16h.01"></path></svg></div>`;
   }
 
   return `
@@ -175,9 +184,13 @@ function cardTemplate(p){
           <svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
         </button>
       </div>
-      ${imageHtml}
-      ${nameHtml}
-      <div class="type-row">${typesHtml}</div>
+      <div class="card-head">
+        ${imageHtml}
+        <div class="card-info">
+          ${nameHtml}
+          <div class="type-row">${typesHtml}</div>
+        </div>
+      </div>
       ${partnerHtml}
       <div class="role-row">
         <button class="role-btn base ${inBase ? 'on' : ''}" data-action="base" ${discovered ? '' : 'disabled'} aria-pressed="${inBase}">
@@ -261,7 +274,7 @@ document.getElementById('grid').addEventListener('click', (e) => {
       delete state.images[id];
     }
     if(isSheetConfigured()){
-      sheetSend('setDiscovered', { palId:id, discovered:now })
+      sheetSend('setDiscovered', Object.assign({ palId:id, discovered:now }, palSheetInfo_(id)))
         .catch(() => showToast('Could not update this Pal’s discovered status on your Google Sheet.', true));
       if(!now){
         sheetSend('setBase', { palId:id, base:false }).catch(() => {});
@@ -273,7 +286,7 @@ document.getElementById('grid').addEventListener('click', (e) => {
     const now = !state.base[id];
     state.base[id] = now;
     if(isSheetConfigured()){
-      sheetSend('setBase', { palId:id, base:now })
+      sheetSend('setBase', Object.assign({ palId:id, base:now }, palSheetInfo_(id)))
         .catch(() => showToast('Could not update this Pal’s Base status on your Google Sheet.', true));
     }
   } else if(action === 'party'){
@@ -281,7 +294,7 @@ document.getElementById('grid').addEventListener('click', (e) => {
     const now = !state.party[id];
     state.party[id] = now;
     if(isSheetConfigured()){
-      sheetSend('setParty', { palId:id, party:now })
+      sheetSend('setParty', Object.assign({ palId:id, party:now }, palSheetInfo_(id)))
         .catch(() => showToast('Could not update this Pal’s Party status on your Google Sheet.', true));
     }
   } else if(action === 'image'){
@@ -324,7 +337,7 @@ document.getElementById('filtersToggle').addEventListener('click', () => {
 });
 
 /* ============================================================
-   PASSIVE SKILLS MODAL
+   PASSIVE SKILLS
    ============================================================ */
 function rankBadgeHtml(rank){
   const sign = rank > 0 ? '+' + rank : rank;
@@ -332,17 +345,42 @@ function rankBadgeHtml(rank){
   return `<span class="rank-badge ${cls}">${sign}</span>`;
 }
 
+// No official Palworld categorization exists for passive skills, so
+// this isn't a hardcoded list — it's whatever distinct, non-blank
+// values are actually sitting in the sheet's "category" column right
+// now. The filter row only appears once there's something to filter
+// by, since the column starts out blank for you to fill in yourself.
+let passiveCategoryFilter = '';
+
 function renderPassives(filterText){
   const list = document.getElementById('passivesList');
   const q = (filterText || '').trim().toLowerCase();
-  const items = passiveSkillsData.filter(p => !q || p[0].toLowerCase().includes(q));
+
+  const categories = [...new Set(passiveSkillsData.map(p => p[4]).filter(Boolean))].sort();
+  const catRow = document.getElementById('passivesCategoryRow');
+  if(categories.length){
+    if(passiveCategoryFilter && !categories.includes(passiveCategoryFilter)) passiveCategoryFilter = '';
+    catRow.style.display = 'flex';
+    catRow.innerHTML = [{ v:'', label:'All' }].concat(categories.map(c => ({ v:c, label:c })))
+      .map(c => `<button class="chip-toggle ${passiveCategoryFilter === c.v ? 'on' : ''}" data-category="${escapeHtml(c.v)}">${escapeHtml(c.label)}</button>`)
+      .join('');
+  } else {
+    catRow.style.display = 'none';
+    catRow.innerHTML = '';
+  }
+
+  const items = passiveSkillsData.filter(p => {
+    if(q && !p[0].toLowerCase().includes(q)) return false;
+    if(passiveCategoryFilter && p[4] !== passiveCategoryFilter) return false;
+    return true;
+  });
 
   const unlockedTotal = passiveSkillsData.filter(p => state.passivesUnlocked[p[0]]).length;
   document.getElementById('passivesUnlockedCount').textContent =
     `${unlockedTotal} / ${passiveSkillsData.length} unlocked`;
 
   if(items.length === 0){
-    list.innerHTML = `<div class="passives-empty">No passive skills match "${escapeHtml(filterText)}".</div>`;
+    list.innerHTML = `<div class="passives-empty">No passive skills match${q ? ` "${escapeHtml(filterText)}"` : ''}${passiveCategoryFilter ? ` in "${escapeHtml(passiveCategoryFilter)}"` : ''}.</div>`;
     return;
   }
 
@@ -367,6 +405,12 @@ function renderPassives(filterText){
 }
 
 document.getElementById('passiveSearch').addEventListener('input', (e) => renderPassives(e.target.value));
+document.getElementById('passivesCategoryRow').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-category]');
+  if(!btn) return;
+  passiveCategoryFilter = btn.dataset.category;
+  renderPassives(document.getElementById('passiveSearch').value);
+});
 document.getElementById('passivesList').addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-action="unlock-passive"]');
   if(!btn) return;
@@ -450,7 +494,7 @@ document.getElementById('imageSave').addEventListener('click', async () => {
 
   if(isSheetConfigured()){
     try{
-      await sheetSend('setPalImageUrl', { palId: id, imageUrl: url });
+      await sheetSend('setPalImageUrl', Object.assign({ palId: id, imageUrl: url }, palSheetInfo_(id)));
       if(url) palImageDb[id] = url; else delete palImageDb[id];
       persistSheetDataCache();
       render();
@@ -471,7 +515,7 @@ document.getElementById('imageRemove').addEventListener('click', async () => {
 
   if(isSheetConfigured()){
     try{
-      await sheetSend('setPalImageUrl', { palId: id, imageUrl: '' });
+      await sheetSend('setPalImageUrl', Object.assign({ palId: id, imageUrl: '' }, palSheetInfo_(id)));
       delete palImageDb[id];
       persistSheetDataCache();
       render();

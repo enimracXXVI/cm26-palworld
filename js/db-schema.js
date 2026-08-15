@@ -7,23 +7,23 @@
 const DB_SCHEMA = [
   {
     tab: 'pals',
-    purpose: 'One row per Pal. Seeded once from the app’s built-in Pal list the first time it connects to an empty tab; after that you own the rows. base/party were added additively (appended, nothing else touched) the first time the app connected to a tab missing them — same for the 12 Work Suitability columns, which the app never writes to itself.',
+    purpose: 'One row per Pal you\'ve actually interacted with — not pre-seeded. A row is created the first time you discover a Pal, assign it Base/Party, or add a picture, pre-filled with its name/type at that moment. base/party and the 12 Work Suitability columns are added additively (appended, nothing else touched) the first time the app connects to a tab missing them.',
     keyedBy: 'palId',
     columns: [
-      { name: 'id', notes: 'Row id. Any unique value — not the same as palId.' },
+      { name: 'id', notes: 'Row id — a simple incrementing number assigned when the row is created.' },
       { name: 'palId', notes: 'Palpedia number, as text ("001") or a real number displayed zero-padded via a custom format — either works, normalized on read. Never rewritten by the app.' },
-      { name: 'name', notes: 'Pal name.' },
-      { name: 'type', notes: 'Type code(s), comma- or pipe-separated (NE, FI, WA, GR, EL, IC, GD, DA, DR).' },
+      { name: 'name', notes: 'Pal name, filled in when the row is created.' },
+      { name: 'type', notes: 'Type code(s), pipe-separated, filled in when the row is created.' },
       { name: 'imageUrl', notes: 'Picture URL for the card. Written when you add/change a picture in the app.', written: true },
-      { name: 'discovered', notes: '"Yes" or blank. Written when you tick a Pal off in the app, and cleared by Reset Palpedia progress.', written: true },
-      { name: 'base', notes: '"Yes" or blank. Written when you toggle a Pal\'s Base assignment, and cleared by Reset Palpedia progress or un-discovering the Pal.', written: true },
-      { name: 'party', notes: '"Yes" or blank. Written when you toggle a Pal\'s Party assignment, and cleared by Reset Palpedia progress or un-discovering the Pal.', written: true },
+      { name: 'discovered', notes: 'TRUE/FALSE. Written when you tick a Pal off in the app, and cleared by Reset Palpedia progress.', written: true },
+      { name: 'base', notes: 'TRUE/FALSE. Written when you toggle a Pal\'s Base assignment, and cleared by Reset Palpedia progress or un-discovering the Pal.', written: true },
+      { name: 'party', notes: 'TRUE/FALSE. Written when you toggle a Pal\'s Party assignment, and cleared by Reset Palpedia progress or un-discovering the Pal.', written: true },
       { name: 'Kindling, Watering, Planting, Generating Electricity, Handiwork, Gathering, Lumbering, Mining, Medicine Production, Cooling, Transporting, Farming', notes: 'The 12 Work Suitability levels. Added blank for you to fill in from a source you trust — the app only reads these, it never writes a value into them.' }
     ]
   },
   {
     tab: 'partnerSkills',
-    purpose: 'Reference data, its own tab so a Pal can have zero, one, or (in theory) more partner skills. Not written by the app — you maintain it directly in the sheet.',
+    purpose: 'Reference data, its own tab so a Pal can have zero, one, or (in theory) more partner skills. Not written by the app, and not pre-seeded — you populate it directly in the sheet.',
     keyedBy: 'palId',
     columns: [
       { name: 'id', notes: 'Row id.' },
@@ -61,15 +61,16 @@ const DB_SCHEMA = [
   },
   {
     tab: 'passiveSkills',
-    purpose: 'Seeded once from the app’s built-in list of 115 named passive skills (not tied to a specific Pal) if the tab doesn’t exist yet. The app adds the unlocked column itself, additively, the first time it connects to a tab that’s missing it — nothing else about an existing tab is touched.',
+    purpose: 'Seeded once from the app’s built-in list of 115 named passive skills (not tied to a specific Pal) if the tab doesn’t exist yet. The app adds the category and unlocked columns itself, additively, the first time it connects to a tab that’s missing them — nothing else about an existing tab is touched.',
     keyedBy: 'name',
     columns: [
       { name: 'id', notes: 'Row id.' },
       { name: 'name', notes: 'Passive skill name.' },
       { name: 'rank', notes: 'Numeric rank/tier, as shown by the rank badge.' },
-      { name: 'surgery', notes: 'Whether it can be installed via surgery. Only shown once the skill is unlocked.' },
+      { name: 'surgery', notes: 'TRUE/FALSE — whether it can be installed via surgery. Only shown once the skill is unlocked.' },
       { name: 'effects', notes: 'Effect text.' },
-      { name: 'unlocked', notes: '"Yes" or blank. Written when you unlock a skill in the Passive Skills panel, and cleared by Reset Palpedia progress. Union-merged on read, never revoked by a stale local device.', written: true }
+      { name: 'category', notes: 'Left blank — no official Palworld categorization exists to seed it with. Fill in your own grouping (Attack, Defense, Work, ...) and the Passive Skills tab automatically shows filter chips for whatever distinct values it finds here.' },
+      { name: 'unlocked', notes: 'TRUE/FALSE. Written when you unlock a skill in the Passive Skills panel, and cleared by Reset Palpedia progress. Union-merged on read, never revoked by a stale local device.', written: true }
     ]
   },
   {
