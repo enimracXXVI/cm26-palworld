@@ -13,14 +13,14 @@ const APPS_SCRIPT_SOURCE = `/**
  * Version: New version -> Deploy. (Or make a fresh deployment, but
  * then you must re-paste the new URL into the app.)
  *
- * SCHEMA — six tabs, all lowercase, everything looked up by column
+ * SCHEMA — seven tabs, all lowercase, everything looked up by column
  * name (not position), so reordering or adding your own columns never
  * breaks anything. A missing tab is created with sensible defaults;
  * an existing tab is never restructured, only ever read from — except
  * for a handful of narrow, purpose-built writes: pals.discovered/
  * imageUrl/base/party and passiveSkills.unlocked. pals.base/party and
- * passiveSkills.unlocked are added as new columns if they aren't there
- * yet, appended at the end, nothing else touched.
+ * passiveSkills.category/unlocked are added as new columns if they
+ * aren't there yet, appended at the end, nothing else touched.
  *
  *  - breedingLog:   id, createdAt, parentA_palId, parentA_sex,
  *                   parentA_passives, parentA_actives, parentB_palId,
@@ -28,23 +28,29 @@ const APPS_SCRIPT_SOURCE = `/**
  *                   offspring_palId, offspring_sex, offspring_passives,
  *                   offspring_actives, notes. Fully owned by the app.
  *  - pals:          id, palId, name, type, imageUrl, discovered, base,
- *                   party, plus 12 Work Suitability columns (Kindling,
- *                   Watering, Planting, Generating Electricity,
- *                   Handiwork, Gathering, Lumbering, Mining, Medicine
- *                   Production, Cooling, Transporting, Farming) — left
- *                   blank for you to fill in yourself; the app only
- *                   adds and reads these columns, never writes values
- *                   into them. 'type' may be comma- or pipe-separated
- *                   (a Sheets multi-select dropdown auto-joins with
- *                   commas).
+ *                   party, plus 12 Work Suitability level columns
+ *                   (Kindling, Watering, Planting, Generating
+ *                   Electricity, Handiwork, Gathering, Lumbering,
+ *                   Mining, Medicine Production, Cooling, Transporting,
+ *                   Farming) — left blank for you to fill in yourself
+ *                   (1-9, per the game); the app only adds and reads
+ *                   these columns, never writes values into them.
+ *                   'type' may be comma- or pipe-separated (a Sheets
+ *                   multi-select dropdown auto-joins with commas).
  *  - partnerSkills: id, palId, palName, name, description — a
  *                   separate tab, one row per Pal.
  *  - activeSkills:  id, name, element, power, ct, exclusive,
  *                   description, notes — you populate this yourself;
  *                   only 'name' is required for a row to be used.
  *  - elements:      id, code, name, imageUrl — the 9 Palworld types.
- *  - passiveSkills: id, name, rank, surgery, effects, unlocked.
- *                   'effects' may be comma- or pipe-separated.
+ *  - passiveSkills: id, name, rank, surgery, effects, category,
+ *                   unlocked. 'effects' and 'category' may be comma- or
+ *                   pipe-separated — a skill can belong to more than
+ *                   one category (e.g. "Attack, Defense").
+ *  - workSuitability: id, name, imageUrl — an icon per Work
+ *                   Suitability type (the same 12 names as the pals
+ *                   columns above). Not the per-Pal levels themselves,
+ *                   just which picture represents e.g. "Kindling".
  *
  * Every *_palId column is read tolerantly: the cell may be the text
  * "001" or the real number 1 (e.g. displayed zero-padded via a custom
@@ -219,6 +225,9 @@ var ELEMENTS_HEADERS = ['id', 'code', 'name', 'imageUrl'];
 var PASSIVE_SKILLS_SHEET_NAME = 'passiveSkills';
 var PASSIVE_SKILLS_HEADERS = ['id', 'name', 'rank', 'surgery', 'effects', 'category', 'unlocked'];
 
+var WORK_SUITABILITY_SHEET_NAME = 'workSuitability';
+var WORK_SUITABILITY_HEADERS = ['id', 'name', 'imageUrl'];
+
 /* ============================================================
    GENERIC HELPERS
    ============================================================ */
@@ -236,7 +245,7 @@ function checkSecret_(secret) {
 // actually running this version — editing the code in the Apps Script
 // editor does NOT update what's live until you redeploy (see header
 // comment), which is easy to think you did and not have actually done.
-var SCRIPT_BUILD = '2026-08-13.2';
+var SCRIPT_BUILD = '2026-08-13.3';
 
 function jsonOut_(obj) {
   obj._build = SCRIPT_BUILD;
@@ -573,6 +582,34 @@ function readElements_() {
 }
 
 /* ============================================================
+   workSuitability — id, name, imageUrl
+   Reference tab supplying an icon per Work Suitability type (the
+   same 12 names as the columns on pals). Not the per-Pal levels
+   themselves — those live in pals's 12 columns — this is purely
+   "what icon represents Kindling", the same role elements plays for
+   pals.type.
+   ============================================================ */
+function getWorkSuitabilitySheet_() {
+  var seedRows = WORK_SUITABILITY_COLUMNS.map(function (name, i) { return [i + 1, name, '']; });
+  return getSheetOrCreate_(WORK_SUITABILITY_SHEET_NAME, WORK_SUITABILITY_HEADERS, seedRows);
+}
+
+function readWorkSuitability_() {
+  var sheet = getWorkSuitabilitySheet_();
+  var values = sheet.getDataRange().getValues();
+  if (values.length < 2) return [];
+  var header = values[0];
+  var cName = headerIndex_(header, 'name'), cImg = headerIndex_(header, 'imageUrl');
+  var out = [];
+  for (var i = 1; i < values.length; i++) {
+    var row = values[i];
+    if (cName === -1 || !row[cName]) continue;
+    out.push({ name: String(row[cName]), imageUrl: cImg !== -1 ? String(row[cImg] || '') : '' });
+  }
+  return out;
+}
+
+/* ============================================================
    passiveSkills — id, name, rank, surgery, effects, unlocked
    'unlocked' is the one column this script adds to an existing
    tab if it's missing, purpose-built for tracking which passives
@@ -612,7 +649,7 @@ function readPassiveSkills_() {
       rank: cRank !== -1 ? (Number(row[cRank]) || 0) : 0,
       surgery: cSurg !== -1 ? isTruthyCell_(row[cSurg]) : false,
       effects: cEff !== -1 ? splitMulti_(row[cEff]) : [],
-      category: cCat !== -1 ? String(row[cCat] || '') : '',
+      category: cCat !== -1 ? splitMulti_(row[cCat]) : [],
       unlocked: cUnlock !== -1 ? isTruthyCell_(row[cUnlock]) : false
     });
   }
@@ -669,7 +706,8 @@ function doGet(e) {
       partnerSkills: readPartnerSkills_(),
       activeSkills: readActiveSkills_(),
       elements: readElements_(),
-      passiveSkills: readPassiveSkills_()
+      passiveSkills: readPassiveSkills_(),
+      workSuitability: readWorkSuitability_()
     });
   } catch (err) {
     return jsonOut_({ ok: false, error: 'Sheet error: ' + err.message });

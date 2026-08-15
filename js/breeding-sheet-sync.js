@@ -43,13 +43,16 @@ let palImageDb = {};
 let palPartnerSkillDb = {};
 let elementImageDb = {};
 let palWorkSuitabilityDb = {};
+// Icon per Work Suitability type (from the workSuitability tab) — not
+// the per-Pal levels, which live in palWorkSuitabilityDb above.
+let workSuitabilityImageDb = {};
 let activeSkillNames = [];
 // Both start as a working copy of the hardcoded PASSIVE_SKILLS data
 // (mutated in place on sync — see applySheetData), so the app is fully
 // usable before ever connecting a sheet, and everything reading from
 // these two arrays (renderPassives, the breeding form's tag-input
 // suggestions) picks up sheet edits live without rebuilding anything.
-let passiveSkillsData = PASSIVE_SKILLS.map(p => [p[0], p[1], p[2], p[3].slice(), '']);
+let passiveSkillsData = PASSIVE_SKILLS.map(p => [p[0], p[1], p[2], p[3].slice(), []]);
 let passiveSkillNames = PASSIVE_SKILLS.map(p => p[0]);
 
 function loadSheetDataCache(){
@@ -61,6 +64,7 @@ function loadSheetDataCache(){
     palPartnerSkillDb = cached.palPartnerSkillDb || {};
     elementImageDb = cached.elementImageDb || {};
     palWorkSuitabilityDb = cached.palWorkSuitabilityDb || {};
+    workSuitabilityImageDb = cached.workSuitabilityImageDb || {};
     (cached.activeSkillNames || []).forEach(n => activeSkillNames.push(n));
     if(cached.passiveSkillsData && cached.passiveSkillsData.length){
       passiveSkillsData.length = 0;
@@ -71,7 +75,7 @@ function loadSheetDataCache(){
   }catch(e){}
 }
 function persistSheetDataCache(){
-  try{ localStorage.setItem(SHEET_DATA_CACHE_KEY, JSON.stringify({ palImageDb, palPartnerSkillDb, elementImageDb, palWorkSuitabilityDb, activeSkillNames, passiveSkillsData })); }catch(e){}
+  try{ localStorage.setItem(SHEET_DATA_CACHE_KEY, JSON.stringify({ palImageDb, palPartnerSkillDb, elementImageDb, palWorkSuitabilityDb, workSuitabilityImageDb, activeSkillNames, passiveSkillsData })); }catch(e){}
 }
 let breedingEntries = [];
 let sheetConfig = { url:'', secret:'' };
@@ -200,6 +204,9 @@ async function applySheetData(data){
   elementImageDb = {};
   (data.elements || []).forEach(t => { if(t.imageUrl) elementImageDb[t.code] = t.imageUrl; });
 
+  workSuitabilityImageDb = {};
+  (data.workSuitability || []).forEach(w => { if(w.imageUrl) workSuitabilityImageDb[w.name] = w.imageUrl; });
+
   const names = (data.activeSkills || []).map(s => s.name).filter(Boolean);
   activeSkillNames.length = 0;
   names.forEach(n => activeSkillNames.push(n));
@@ -210,7 +217,7 @@ async function applySheetData(data){
   const sheetPassives = (data.passiveSkills || []).filter(p => p.name);
   if(sheetPassives.length){
     passiveSkillsData.length = 0;
-    sheetPassives.forEach(p => passiveSkillsData.push([p.name, p.rank, p.surgery, p.effects || [], p.category || '']));
+    sheetPassives.forEach(p => passiveSkillsData.push([p.name, p.rank, p.surgery, p.effects || [], p.category || []]));
     passiveSkillNames.length = 0;
     passiveSkillsData.forEach(p => passiveSkillNames.push(p[0]));
   }

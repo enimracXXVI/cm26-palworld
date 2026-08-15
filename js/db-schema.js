@@ -69,8 +69,18 @@ const DB_SCHEMA = [
       { name: 'rank', notes: 'Numeric rank/tier, as shown by the rank badge.' },
       { name: 'surgery', notes: 'TRUE/FALSE — whether it can be installed via surgery. Only shown once the skill is unlocked.' },
       { name: 'effects', notes: 'Effect text.' },
-      { name: 'category', notes: 'Left blank — no official Palworld categorization exists to seed it with. Fill in your own grouping (Attack, Defense, Work, ...) and the Passive Skills tab automatically shows filter chips for whatever distinct values it finds here.' },
+      { name: 'category', notes: 'Left blank — no official Palworld categorization exists to seed it with. Fill in your own grouping, comma- or pipe-separated if a skill fits more than one (e.g. "Attack, Defense"), and the Passive Skills tab automatically shows filter chips for whatever distinct values it finds here.' },
       { name: 'unlocked', notes: 'TRUE/FALSE. Written when you unlock a skill in the Passive Skills panel, and cleared by Reset Palpedia progress. Union-merged on read, never revoked by a stale local device.', written: true }
+    ]
+  },
+  {
+    tab: 'workSuitability',
+    purpose: 'Reference tab supplying an icon per Work Suitability type — the same 12 names as the columns on pals. Not the per-Pal levels themselves (those live in pals\' 12 columns); this is purely "which picture represents Kindling", the same role elements plays for pals.type.',
+    keyedBy: 'name',
+    columns: [
+      { name: 'id', notes: 'Row id.' },
+      { name: 'name', notes: 'One of the 12 Work Suitability type names — must match a pals column header exactly to join up.' },
+      { name: 'imageUrl', notes: 'Icon shown on the Pal card\'s Work Suitability row.' }
     ]
   },
   {
@@ -95,7 +105,8 @@ const DB_RELATIONSHIPS = [
   'pals.type ↔ elements.code — type pictures for card type pills and filter chips.',
   'activeSkills.element ↔ elements.code — same type codes, for active skill type badges.',
   'breedingLog.*_passives ↔ passiveSkills.name — free-text match, not an enforced key (the breeding form suggests names from passiveSkills, but the column stores plain text).',
-  'breedingLog.*_actives ↔ activeSkills.name — same: suggested, not enforced.'
+  'breedingLog.*_actives ↔ activeSkills.name — same: suggested, not enforced.',
+  'workSuitability.name ↔ pals\' 12 Work Suitability column headers — an icon for each type, matched by exact name.'
 ];
 
 function renderSchema(){

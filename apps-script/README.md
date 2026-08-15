@@ -90,23 +90,35 @@ exceptions described below (`pals.discovered`/`imageUrl`/`base`/
   a colored pill wherever a Pal's types are listed (both on cards and
   in the type filter chips).
 - **passiveSkills** — `id, name, rank, surgery, effects, category,
-  unlocked`. `effects` may be comma- or pipe-separated; `surgery`/
-  `unlocked` are real `TRUE`/`FALSE` boolean values (`TRUE`/`Yes`/`1`/
-  `x` all count as true if you edit by hand). `category` is left blank
-  — there's no official Palworld categorization to seed it with, so
-  it's there for you to fill in however you'd like to group/filter
-  skills (Attack, Defense, Work, ...). The Passive Skills tab in the
-  app reads whatever distinct category values actually exist and shows
-  them as filter chips automatically — no code change needed, the
-  filter row just doesn't appear until the column has something in it.
-  `category` and `unlocked` are the two columns this script adds to an
-  existing tab if they're missing — appended at the end, nothing else
-  touched — because the app tracks which passives you've discovered
-  here too, the same way it tracks `pals.discovered`. The Passive
-  Skills tab and the Breeding Log's passive-skill suggestions both read
-  this whole tab live, so a rename, correction, or added row shows up
-  on the next sync — a locked (not-yet-unlocked) passive shows
-  only its name and rank, not its effects or whether it needs Surgery.
+  unlocked`. `effects` and `category` may be comma- or pipe-separated —
+  a skill can sit in more than one category (e.g. "Attack, Defense"),
+  and each one becomes its own filter chip. `surgery`/`unlocked` are
+  real `TRUE`/`FALSE` boolean values (`TRUE`/`Yes`/`1`/`x` all count as
+  true if you edit by hand). `category` is left blank — there's no
+  official Palworld categorization to seed it with, so it's there for
+  you to fill in however you'd like to group/filter skills (Attack,
+  Defense, Work, ...). The Passive Skills tab in the app reads whatever
+  distinct category values actually exist and shows them as filter
+  chips automatically — no code change needed, the filter row just
+  doesn't appear until the column has something in it. `category` and
+  `unlocked` are the two columns this script adds to an existing tab
+  if they're missing — appended at the end, nothing else touched —
+  because the app tracks which passives you've discovered here too,
+  the same way it tracks `pals.discovered`. The Passive Skills tab and
+  the Breeding Log's passive-skill suggestions both read this whole
+  tab live, so a rename, correction, or added row shows up on the next
+  sync — a locked (not-yet-unlocked) passive shows only its name and
+  rank, not its effects or whether it needs Surgery.
+- **workSuitability** — `id, name, imageUrl`. Reference tab, one row
+  per Work Suitability type — `name` must match one of the 12 column
+  headers on `pals` exactly (Kindling, Watering, Planting, Generating
+  Electricity, Handiwork, Gathering, Lumbering, Mining, Medicine
+  Production, Cooling, Transporting, Farming) to join up. Paste a
+  picture URL per type and the Pal card shows that icon (with the
+  Pal's 1-9 level from the matching `pals` column) instead of a text
+  pill wherever its Work Suitability is listed. Not the per-Pal levels
+  themselves — those live on `pals` — this is purely which picture
+  represents each type, the same role `elements` plays for `pals.type`.
 
 ### Multi-value columns: comma vs. pipe
 

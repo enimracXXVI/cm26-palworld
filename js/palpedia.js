@@ -159,6 +159,25 @@ function cardTemplate(p){
     partnerHtml = `<div class="partner-block"><div class="partner-label">Partner Skill</div><div class="partner-empty">Discover to reveal</div></div>`;
   }
 
+  // A Pal can have several suitabilities, each with its own level
+  // (1-9 in-game). Icons come from the workSuitability reference tab
+  // when set; falls back to a text pill (name + level) otherwise.
+  // Omitted entirely once no level data exists yet for this Pal.
+  let suitabilityHtml = '';
+  if (discovered) {
+    const levels = palWorkSuitabilityDb[id] || {};
+    const entries = Object.keys(levels).filter(k => levels[k] !== '' && levels[k] != null);
+    if (entries.length) {
+      suitabilityHtml = `<div class="suitability-row">${entries.map(k => {
+        const level = levels[k];
+        const icon = workSuitabilityImageDb[k];
+        return icon
+          ? `<span class="suitability-item" title="${escapeHtml(k)}: ${escapeHtml(level)}"><img class="suitability-icon" src="${escapeHtml(icon)}" alt="${escapeHtml(k)}" loading="lazy"><span class="suitability-level">${escapeHtml(level)}</span></span>`
+          : `<span class="suitability-pill" title="${escapeHtml(k)}">${escapeHtml(k)} ${escapeHtml(level)}</span>`;
+      }).join('')}</div>`;
+    }
+  }
+
   let imageHtml = '';
   if (discovered) {
     const imgUrl = state.images[id] || palImageDb[id];
@@ -191,6 +210,7 @@ function cardTemplate(p){
           <div class="type-row">${typesHtml}</div>
         </div>
       </div>
+      ${suitabilityHtml}
       ${partnerHtml}
       <div class="role-row">
         <button class="role-btn base ${inBase ? 'on' : ''}" data-action="base" ${discovered ? '' : 'disabled'} aria-pressed="${inBase}">
@@ -356,7 +376,12 @@ function renderPassives(filterText){
   const list = document.getElementById('passivesList');
   const q = (filterText || '').trim().toLowerCase();
 
-  const categories = [...new Set(passiveSkillsData.map(p => p[4]).filter(Boolean))].sort();
+  // Each skill's category cell can hold more than one value
+  // (comma/pipe-separated, e.g. "Attack, Defense") — the server
+  // already splits it into an array, so the distinct-values list and
+  // the filter check both need to look inside each skill's set, not
+  // treat the whole cell as one category.
+  const categories = [...new Set(passiveSkillsData.flatMap(p => p[4]))].sort();
   const catRow = document.getElementById('passivesCategoryRow');
   if(categories.length){
     if(passiveCategoryFilter && !categories.includes(passiveCategoryFilter)) passiveCategoryFilter = '';
@@ -371,7 +396,7 @@ function renderPassives(filterText){
 
   const items = passiveSkillsData.filter(p => {
     if(q && !p[0].toLowerCase().includes(q)) return false;
-    if(passiveCategoryFilter && p[4] !== passiveCategoryFilter) return false;
+    if(passiveCategoryFilter && !p[4].includes(passiveCategoryFilter)) return false;
     return true;
   });
 
