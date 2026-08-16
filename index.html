@@ -48,6 +48,7 @@
     <div class="seg view-tabs" id="viewTabs">
       <button data-view="palpedia" class="active" type="button">Palpedia</button>
       <button data-view="passives" type="button">Passive Skills</button>
+      <button data-view="bosses" type="button">Bosses</button>
       <button data-view="breeding" type="button">Breeding Log</button>
       <button data-view="styleguide" type="button">Style Guide</button>
       <button data-view="schema" type="button">DB Schema</button>
@@ -55,6 +56,7 @@
 
     <p class="sub" id="subPalpedia">Every catalogued Pal, in Palpedia order. Tick a Pal off once you've caught it — until then, its entry stays sealed.</p>
     <p class="sub" id="subPassives" style="display:none;">Every named passive skill in the game — not tied to any single Pal. Tap a skill to unlock its effect.</p>
+    <p class="sub" id="subBosses" style="display:none;">Every boss on your bosses tab. Tap a card to mark it defeated for this run — reset when you start a new one.</p>
     <p class="sub" id="subBreeding" style="display:none;">Log the Pals you bred, what each parent was carrying, and what came out the other side. Optionally synced to a Google Sheet you control.</p>
     <p class="sub" id="subStyleguide" style="display:none;">The colors, type, and components this app is built from — reads live from style.css, so it never drifts.</p>
     <p class="sub" id="subSchema" style="display:none;">The Google Sheet tabs, columns, and relationships the app reads and writes — mirrors apps-script/Code.gs.</p>
@@ -111,6 +113,18 @@
       <div class="row2" id="passivesCategoryRow" style="display:none;"></div>
       <div class="passives-list" id="passivesList"></div>
     </div>
+    <div id="bossesView">
+      <div class="bosses-toolbar">
+        <div class="search-box bosses-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input id="bossSearch" type="text" placeholder="Search bosses…" autocomplete="off">
+        </div>
+        <span class="bosses-count" id="bossesDefeatedCount"></span>
+        <button class="reset-btn" id="resetBossesBtn" type="button">Reset run</button>
+      </div>
+      <div class="row2" id="bossesTypeRow" style="display:none;"></div>
+      <div class="bosses-grid" id="bossesGrid"></div>
+    </div>
     <div id="breedingView">
       <div id="breedEntries" class="breed-list"></div>
     </div>
@@ -131,6 +145,17 @@
     <div class="modal-actions">
       <button id="resetCancel">Cancel</button>
       <button class="confirm" id="resetConfirm">Reset everything</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="resetBossesModal" style="display:none;">
+  <div class="modal">
+    <h3>Reset this boss run?</h3>
+    <p>Marks every boss as not-yet-defeated again, on this device — and, if a Google Sheet is connected, in the bosses tab too. This can't be undone.</p>
+    <div class="modal-actions">
+      <button id="resetBossesCancel">Cancel</button>
+      <button class="confirm" id="resetBossesConfirm">Reset run</button>
     </div>
   </div>
 </div>
@@ -201,7 +226,7 @@
         <li>In the Apps Script editor: <b>Project Settings</b> (gear icon) → <b>Script Properties</b> → add a property named <code>SECRET</code> with any password you choose.</li>
         <li><b>Deploy → New deployment</b> → type <b>Web app</b> → Execute as <b>Me</b>, Who has access <b>Anyone</b> → <b>Deploy</b>, then authorize it.</li>
         <li>Copy the Web app URL it gives you and paste it above, along with the same SECRET.</li>
-        <li>Once connected, six tabs are used on the sheet: <b>pals</b> (id/palId/name/type/imageUrl/discovered — the app writes <code>imageUrl</code> and <code>discovered</code> as you use it), <b>partnerSkills</b> (id/palId/palName/name/description — its own tab), <b>passiveSkills</b> (id/name/rank/surgery/effects/unlocked — the app writes <code>unlocked</code>, adding that column itself if it's missing), <b>activeSkills</b> (id/name/element/power/ct/exclusive/description/notes — paste your own data, only <code>name</code> is required), <b>elements</b> (id/code/name/imageUrl — the 9 types), and <b>breedingLog</b> (fully owned by the app). Any tab that already exists keeps exactly the columns you've set up — nothing is renamed or reordered.</li>
+        <li>Once connected, several tabs are used on the sheet: <b>pals</b> (id/palId/name/type/imageUrl/discovered/base/party + 12 Work Suitability columns — the app writes <code>imageUrl</code>, <code>discovered</code>, <code>base</code>, and <code>party</code> as you use it), <b>partnerSkills</b> (id/palId/palName/name/description — its own tab), <b>passiveSkills</b> (id/name/rank/surgery/effects/category/unlocked — the app writes <code>unlocked</code>, adding that column itself if it's missing), <b>activeSkills</b> (id/name/element/power/ct/exclusive/description/notes — paste your own data, only <code>name</code> is required), <b>elements</b> (id/code/name/imageUrl — the 9 types), <b>workSuitability</b> (id/name/imageUrl — an icon per Work Suitability type), <b>bosses</b> (id/name/level/type/defeated — you populate id/name/level/type, the app writes <code>defeated</code>, adding that column itself if it's missing), and <b>breedingLog</b> (fully owned by the app). Any tab that already exists keeps exactly the columns you've set up — nothing is renamed or reordered.</li>
       </ol>
       <p class="sheet-redeploy-note">Already connected and pasting in an updated script? Editing the code alone doesn't update your live URL — go to <b>Deploy → Manage deployments</b> → pencil icon → <b>Version: New version</b> → <b>Deploy</b>.</p>
       <button class="wiki-link" id="copyScriptBtn" type="button" style="width:100%;">
@@ -218,6 +243,7 @@
 <script src="js/apps-script-source.js"></script>
 <script src="js/palpedia.js"></script>
 <script src="js/breeding-sheet-sync.js"></script>
+<script src="js/bosses.js"></script>
 <script src="js/db-schema.js"></script>
 <script src="js/style-guide.js"></script>
 <script src="js/main.js"></script>

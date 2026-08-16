@@ -13,14 +13,15 @@ const APPS_SCRIPT_SOURCE = `/**
  * Version: New version -> Deploy. (Or make a fresh deployment, but
  * then you must re-paste the new URL into the app.)
  *
- * SCHEMA — seven tabs, all lowercase, everything looked up by column
+ * SCHEMA — eight tabs, all lowercase, everything looked up by column
  * name (not position), so reordering or adding your own columns never
  * breaks anything. A missing tab is created with sensible defaults;
  * an existing tab is never restructured, only ever read from — except
  * for a handful of narrow, purpose-built writes: pals.discovered/
- * imageUrl/base/party and passiveSkills.unlocked. pals.base/party and
- * passiveSkills.category/unlocked are added as new columns if they
- * aren't there yet, appended at the end, nothing else touched.
+ * imageUrl/base/party, passiveSkills.unlocked, and bosses.defeated.
+ * pals.base/party, passiveSkills.category/unlocked, and
+ * bosses.defeated are added as new columns if they aren't there yet,
+ * appended at the end, nothing else touched.
  *
  *  - breedingLog:   id, createdAt, parentA_palId, parentA_sex,
  *                   parentA_passives, parentA_actives, parentB_palId,
@@ -51,6 +52,11 @@ const APPS_SCRIPT_SOURCE = `/**
  *                   Suitability type (the same 12 names as the pals
  *                   columns above). Not the per-Pal levels themselves,
  *                   just which picture represents e.g. "Kindling".
+ *  - bosses:        id, name, level, type, defeated — you populate
+ *                   id/name/level/type yourself; 'type' may be comma-
+ *                   or pipe-separated. The app writes 'defeated' as
+ *                   you tick bosses off for the current run, adding
+ *                   that column itself if it's missing.
  *
  * Every *_palId column is read tolerantly: the cell may be the text
  * "001" or the real number 1 (e.g. displayed zero-padded via a custom
@@ -228,6 +234,9 @@ var PASSIVE_SKILLS_HEADERS = ['id', 'name', 'rank', 'surgery', 'effects', 'categ
 var WORK_SUITABILITY_SHEET_NAME = 'workSuitability';
 var WORK_SUITABILITY_HEADERS = ['id', 'name', 'imageUrl'];
 
+var BOSSES_SHEET_NAME = 'bosses';
+var BOSSES_HEADERS = ['id', 'name', 'level', 'type', 'defeated'];
+
 /* ============================================================
    GENERIC HELPERS
    ============================================================ */
@@ -245,7 +254,7 @@ function checkSecret_(secret) {
 // actually running this version — editing the code in the Apps Script
 // editor does NOT update what's live until you redeploy (see header
 // comment), which is easy to think you did and not have actually done.
-var SCRIPT_BUILD = '2026-08-13.4';
+var SCRIPT_BUILD = '2026-08-16.1';
 
 function jsonOut_(obj) {
   obj._build = SCRIPT_BUILD;
@@ -628,6 +637,79 @@ function readWorkSuitability_() {
 }
 
 /* ============================================================
+   bosses — id, name, level, type, defeated
+   You populate id/name/level/type yourself. 'defeated' is the one
+   column this script adds to an existing tab if it's missing —
+   appended at the end, nothing else touched — same pattern as
+   passiveSkills.unlocked, for tracking which bosses you've beaten
+   in the current run.
+   ============================================================ */
+function getBossesSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = findSheet_(ss, BOSSES_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(BOSSES_SHEET_NAME);
+    sheet.appendRow(BOSSES_HEADERS);
+    return sheet;
+  }
+  ensureHeaderColumns_(sheet, ['defeated']);
+  return sheet;
+}
+
+function readBosses_() {
+  var sheet = getBossesSheet_();
+  var values = sheet.getDataRange().getValues();
+  if (values.length < 2) return [];
+  var header = values[0];
+  var cId = headerIndex_(header, 'id'), cName = headerIndex_(header, 'name'),
+    cLevel = headerIndex_(header, 'level'), cType = headerIndex_(header, 'type'),
+    cDefeated = headerIndex_(header, 'defeated');
+  var out = [];
+  for (var i = 1; i < values.length; i++) {
+    var row = values[i];
+    if (cName === -1 || !row[cName]) continue;
+    out.push({
+      id: cId !== -1 ? String(row[cId] || '') : '',
+      name: String(row[cName]),
+      level: cLevel !== -1 ? String(row[cLevel] || '') : '',
+      type: cType !== -1 ? splitMulti_(row[cType]) : [],
+      defeated: cDefeated !== -1 ? isTruthyCell_(row[cDefeated]) : false
+    });
+  }
+  return out;
+}
+
+function setBossDefeated_(id, defeated) {
+  var sheet = getBossesSheet_();
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var idCol = headerIndex_(header, 'id');
+  var defeatedCol = headerIndex_(header, 'defeated');
+  if (idCol === -1 || defeatedCol === -1) return false;
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return false;
+  var ids = sheet.getRange(2, idCol + 1, lastRow - 1, 1).getValues();
+  for (var i = 0; i < ids.length; i++) {
+    if (String(ids[i][0]) === String(id)) {
+      sheet.getRange(i + 2, defeatedCol + 1).setValue(!!defeated);
+      return true;
+    }
+  }
+  return false;
+}
+
+function clearAllBossesDefeated_() {
+  var sheet = getBossesSheet_();
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var col = headerIndex_(header, 'defeated');
+  if (col === -1) return;
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+  var blanks = [];
+  for (var i = 0; i < lastRow - 1; i++) blanks.push([false]);
+  sheet.getRange(2, col + 1, blanks.length, 1).setValues(blanks);
+}
+
+/* ============================================================
    passiveSkills — id, name, rank, surgery, effects, unlocked
    'unlocked' is the one column this script adds to an existing
    tab if it's missing, purpose-built for tracking which passives
@@ -709,7 +791,7 @@ function clearAllPassivesUnlocked_() {
    ============================================================ */
 function doGet(e) {
   if (!checkSecret_(e.parameter.secret)) {
-    return jsonOut_({ ok: false, error: 'Unauthorized — the SECRET sent by the app does not match this deployment\'s Script Property.' });
+    return jsonOut_({ ok: false, error: 'Unauthorized — the SECRET sent by the app does not match this deployment\\'s Script Property.' });
   }
   try {
     var sheet = getBreedingSheet_();
@@ -725,7 +807,8 @@ function doGet(e) {
       activeSkills: readActiveSkills_(),
       elements: readElements_(),
       passiveSkills: readPassiveSkills_(),
-      workSuitability: readWorkSuitability_()
+      workSuitability: readWorkSuitability_(),
+      bosses: readBosses_()
     });
   } catch (err) {
     return jsonOut_({ ok: false, error: 'Sheet error: ' + err.message });
@@ -740,7 +823,7 @@ function doPost(e) {
     return jsonOut_({ ok: false, error: 'Bad request' });
   }
   if (!checkSecret_(body.secret)) {
-    return jsonOut_({ ok: false, error: 'Unauthorized — the SECRET sent by the app does not match this deployment\'s Script Property.' });
+    return jsonOut_({ ok: false, error: 'Unauthorized — the SECRET sent by the app does not match this deployment\\'s Script Property.' });
   }
 
   try {
@@ -757,6 +840,9 @@ function doPost(e) {
     if (body.action === 'setPassiveUnlocked') { setPassiveUnlocked_(body.payload.name, body.payload.unlocked); return jsonOut_({ ok: true }); }
     if (body.action === 'setPassiveUnlockedBatch') { (body.payload.names || []).forEach(function (n) { setPassiveUnlocked_(n, true); }); return jsonOut_({ ok: true }); }
     if (body.action === 'clearPassivesUnlocked') { clearAllPassivesUnlocked_(); return jsonOut_({ ok: true }); }
+    if (body.action === 'setBossDefeated') { setBossDefeated_(body.payload.id, body.payload.defeated); return jsonOut_({ ok: true }); }
+    if (body.action === 'setBossDefeatedBatch') { (body.payload.ids || []).forEach(function (id) { setBossDefeated_(id, true); }); return jsonOut_({ ok: true }); }
+    if (body.action === 'clearBossesDefeated') { clearAllBossesDefeated_(); return jsonOut_({ ok: true }); }
 
     var sheet = getBreedingSheet_();
     var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];

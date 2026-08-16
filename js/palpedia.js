@@ -2,7 +2,7 @@
    STATE
    ============================================================ */
 const STORAGE_KEY = 'palpedia-tracker-state-v1';
-let state = { discovered:{}, base:{}, party:{}, images:{}, passivesUnlocked:{} };
+let state = { discovered:{}, base:{}, party:{}, images:{}, passivesUnlocked:{}, bossesDefeated:{} };
 let filters = { search:'', status:'all', baseOnly:false, partyOnly:false, types:new Set() };
 let saveTimer = null;
 
@@ -16,6 +16,7 @@ function loadState(){
       state.party = parsed.party || {};
       state.images = parsed.images || {};
       state.passivesUnlocked = parsed.passivesUnlocked || {};
+      state.bossesDefeated = parsed.bossesDefeated || {};
     }
   }catch(e){
     // no saved state yet, or read failed — start fresh
@@ -565,11 +566,12 @@ function setView(view){
   window.scrollTo(0, 0);
   document.body.dataset.view = view;
   document.querySelectorAll('#viewTabs button[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view));
-  const subEls = { palpedia: 'subPalpedia', passives: 'subPassives', breeding: 'subBreeding', styleguide: 'subStyleguide', schema: 'subSchema' };
+  const subEls = { palpedia: 'subPalpedia', passives: 'subPassives', bosses: 'subBosses', breeding: 'subBreeding', styleguide: 'subStyleguide', schema: 'subSchema' };
   Object.keys(subEls).forEach(key => {
     document.getElementById(subEls[key]).style.display = key === view ? '' : 'none';
   });
   if(view === 'passives') renderPassives(document.getElementById('passiveSearch').value);
+  if(view === 'bosses') renderBosses(document.getElementById('bossSearch').value);
   if(view === 'breeding') renderBreedEntries();
   if(view === 'styleguide' && !styleGuideRendered){ styleGuideRendered = true; renderStyleGuide(); }
   if(view === 'schema') renderSchema();

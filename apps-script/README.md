@@ -119,6 +119,15 @@ exceptions described below (`pals.discovered`/`imageUrl`/`base`/
   pill wherever its Work Suitability is listed. Not the per-Pal levels
   themselves — those live on `pals` — this is purely which picture
   represents each type, the same role `elements` plays for `pals.type`.
+- **bosses** — `id, name, level, type, defeated`. Not tied to `pals`
+  or any other tab — you populate `id`/`name`/`level`/`type` yourself.
+  `type` may be comma- or pipe-separated, and is matched against the
+  game's 9 types for an icon when it lines up, otherwise shown as a
+  plain pill. `defeated` is the one column the app adds itself if it's
+  missing (appended at the end, nothing else touched) — it's written
+  as a real `TRUE`/`FALSE` boolean when you tap a boss card in the
+  Bosses tab, and cleared by that tab's "Reset run" button. Syncs both
+  ways the same as `pals.discovered`/`passiveSkills.unlocked`.
 
 ### Multi-value columns: comma vs. pipe
 

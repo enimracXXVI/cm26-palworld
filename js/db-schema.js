@@ -84,6 +84,18 @@ const DB_SCHEMA = [
     ]
   },
   {
+    tab: 'bosses',
+    purpose: 'You populate id/name/level/type yourself — not tied to Pals or any other tab. defeated is the one column the app adds itself if it\'s missing, appended at the end, for tracking which bosses you\'ve beaten in the current run.',
+    keyedBy: 'id',
+    columns: [
+      { name: 'id', notes: 'Row id — you assign this.' },
+      { name: 'name', notes: 'Boss name, shown on the card.' },
+      { name: 'level', notes: 'Shown as a "Lv" badge on the card. Free text/number.' },
+      { name: 'type', notes: 'Comma- or pipe-separated. Matched against the game\'s 9 types for an icon when possible, otherwise shown as a plain pill.' },
+      { name: 'defeated', notes: 'TRUE/FALSE. Written when you tap a boss card, and cleared by the Bosses tab\'s "Reset run" button. Union-merged on read, never revoked by a stale local device.', written: true }
+    ]
+  },
+  {
     tab: 'breedingLog',
     purpose: 'Fully owned by the app — every row is one entry you logged: two parents in, one offspring out. Created automatically on first connect.',
     keyedBy: 'id',

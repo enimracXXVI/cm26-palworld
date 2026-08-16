@@ -54,6 +54,12 @@ let activeSkillNames = [];
 // suggestions) picks up sheet edits live without rebuilding anything.
 let passiveSkillsData = PASSIVE_SKILLS.map(p => [p[0], p[1], p[2], p[3].slice(), []]);
 let passiveSkillNames = PASSIVE_SKILLS.map(p => p[0]);
+// Reference data from the bosses tab ({id, name, level, type}) — not
+// shipped hardcoded, since bosses (and which run you're tracking) are
+// entirely yours to define. Which ones are defeated lives in
+// state.bossesDefeated, keyed by id, synced the same union-merge way
+// as state.passivesUnlocked.
+let bossesData = [];
 
 function loadSheetDataCache(){
   try{
@@ -72,10 +78,14 @@ function loadSheetDataCache(){
       passiveSkillNames.length = 0;
       passiveSkillsData.forEach(p => passiveSkillNames.push(p[0]));
     }
+    if(cached.bossesData && cached.bossesData.length){
+      bossesData.length = 0;
+      cached.bossesData.forEach(b => bossesData.push(b));
+    }
   }catch(e){}
 }
 function persistSheetDataCache(){
-  try{ localStorage.setItem(SHEET_DATA_CACHE_KEY, JSON.stringify({ palImageDb, palPartnerSkillDb, elementImageDb, palWorkSuitabilityDb, workSuitabilityImageDb, activeSkillNames, passiveSkillsData })); }catch(e){}
+  try{ localStorage.setItem(SHEET_DATA_CACHE_KEY, JSON.stringify({ palImageDb, palPartnerSkillDb, elementImageDb, palWorkSuitabilityDb, workSuitabilityImageDb, activeSkillNames, passiveSkillsData, bossesData })); }catch(e){}
 }
 let breedingEntries = [];
 let sheetConfig = { url:'', secret:'' };
@@ -222,6 +232,14 @@ async function applySheetData(data){
     passiveSkillsData.forEach(p => passiveSkillNames.push(p[0]));
   }
 
+  // bosses isn't seeded — only replace the working copy when the sheet
+  // actually has rows, same guard as passiveSkills above.
+  const sheetBosses = (data.bosses || []).filter(b => b.name);
+  if(sheetBosses.length){
+    bossesData.length = 0;
+    sheetBosses.forEach(b => bossesData.push({ id: b.id, name: b.name, level: b.level || '', type: b.type || [] }));
+  }
+
   // Discovery, base, party, and passive-unlock status all sync the
   // same way: the sheet's set merges into local state (union — a
   // sheet read never un-discovers/un-assigns/re-locks something
@@ -241,6 +259,11 @@ async function applySheetData(data){
   const sheetUnlockedNames = sheetPassives.filter(p => p.unlocked).map(p => p.name);
   sheetUnlockedNames.forEach(name => {
     if(!state.passivesUnlocked[name]){ state.passivesUnlocked[name] = true; localChanged = true; }
+  });
+
+  const sheetDefeatedBossIds = sheetBosses.filter(b => b.defeated).map(b => b.id);
+  sheetDefeatedBossIds.forEach(id => {
+    if(!state.bossesDefeated[id]){ state.bossesDefeated[id] = true; localChanged = true; }
   });
   if(localChanged) persistState();
 
@@ -269,6 +292,13 @@ async function applySheetData(data){
   const namesToPush = Object.keys(state.passivesUnlocked).filter(n => state.passivesUnlocked[n] && !sheetUnlockedSet.has(n));
   if(namesToPush.length){
     try{ await sheetSend('setPassiveUnlockedBatch', { names: namesToPush }); }
+    catch(e){ /* best effort — next sync will retry */ }
+  }
+
+  const sheetDefeatedBossSet = new Set(sheetDefeatedBossIds);
+  const bossIdsToPush = Object.keys(state.bossesDefeated).filter(id => state.bossesDefeated[id] && !sheetDefeatedBossSet.has(id));
+  if(bossIdsToPush.length){
+    try{ await sheetSend('setBossDefeatedBatch', { ids: bossIdsToPush }); }
     catch(e){ /* best effort — next sync will retry */ }
   }
 
